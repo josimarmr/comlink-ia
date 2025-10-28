@@ -1,13 +1,15 @@
 import { useState, useEffect, useRef } from 'react'
-import { MessageCircle, BarChart3, Shield, Send, Menu, X } from 'lucide-react'
+import { MessageCircle, BarChart3, Shield, Menu, X, LogOut } from 'lucide-react'
 import Dashboard from './components/Dashboard'
 import Analytics from './components/Analytics'
 import AdminPanel from './components/AdminPanel'
+import Login from './components/Login'
 
 // URL da API do Worker
 const API_URL = 'https://comlink-api.josimarmarianocel.workers.dev'
 
 function App() {
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [currentPage, setCurrentPage] = useState<'dashboard' | 'analytics' | 'admin'>('dashboard')
   const [messages, setMessages] = useState<Array<{ role: 'user' | 'assistant'; content: string }>>([])
   const [input, setInput] = useState('')
@@ -25,6 +27,16 @@ function App() {
       inputRef.current?.focus()
     }
   }, [currentPage])
+
+  const handleLogin = () => {
+    setIsLoggedIn(true)
+  }
+
+  const handleLogout = () => {
+    setIsLoggedIn(false)
+    setMessages([])
+    setCurrentPage('dashboard')
+  }
 
   const sendMessage = async () => {
     if (!input.trim() || loading) return
@@ -44,7 +56,6 @@ function App() {
       if (!response.ok) throw new Error('Erro na API')
 
       const data = await response.json()
-      // A API retorna { message: "...", stats: {...} }
       const assistantMessage = data.message || data.response || 'Sem resposta'
       setMessages(prev => [...prev, { role: 'assistant', content: assistantMessage }])
     } catch (error) {
@@ -66,17 +77,25 @@ function App() {
     }
   }
 
+  if (!isLoggedIn) {
+    return <Login onLogin={handleLogin} />
+  }
+
   return (
     <div className="flex h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
-      {/* Sidebar */}
       <div className={`${sidebarOpen ? 'w-64' : 'w-0'} transition-all duration-300 bg-slate-900/50 backdrop-blur-xl border-r border-cyan-500/20 overflow-hidden`}>
         <div className="p-6">
-          {/* Logo */}
           <div className="flex items-center justify-center mb-8">
-            <img src="/logo.png" alt="COMLINK" className="w-full h-auto px-4" />
+            <div className="bg-white rounded-2xl p-6 shadow-2xl shadow-cyan-500/30">
+              <img src="/logo.png" alt="COMLINK" className="h-32 w-auto" />
+            </div>
           </div>
 
-          {/* Menu */}
+          <div className="mb-6 p-4 bg-slate-800/30 rounded-xl border border-cyan-500/20">
+            <p className="text-xs text-slate-400 mb-1">Fornecedor</p>
+            <p className="text-sm font-semibold text-cyan-400">JM TECNOLOGIA</p>
+          </div>
+
           <nav className="space-y-2">
             <button
               onClick={() => setCurrentPage('dashboard')}
@@ -114,13 +133,19 @@ function App() {
               <span className="font-medium">Painel Admin</span>
             </button>
           </nav>
+
+          <button
+            onClick={handleLogout}
+            className="w-full mt-6 flex items-center gap-3 px-4 py-3 rounded-xl text-red-400 hover:bg-red-500/10 transition-all border border-red-500/20"
+          >
+            <LogOut className="w-5 h-5" />
+            <span className="font-medium">Sair</span>
+          </button>
         </div>
       </div>
 
-      {/* Main Content */}
       <div className="flex-1 flex flex-col">
-        {/* Header */}
-        <header className="bg-slate-900/50 backdrop-blur-xl border-b border-cyan-500/20 px-6 py-6">
+        <header className="bg-slate-900/50 backdrop-blur-xl border-b border-cyan-500/20 px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <button
@@ -129,14 +154,14 @@ function App() {
               >
                 {sidebarOpen ? <X className="w-6 h-6 text-slate-300" /> : <Menu className="w-6 h-6 text-slate-300" />}
               </button>
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
-                COMLINK IA
-              </h1>
+              <div>
+                <h1 className="text-xl font-bold text-white">Portal do Fornecedor</h1>
+                <p className="text-xs text-slate-400">Gestão de Cotações Recebidas</p>
+              </div>
             </div>
           </div>
         </header>
 
-        {/* Content */}
         <main className="flex-1 overflow-hidden">
           {currentPage === 'dashboard' && (
             <Dashboard
