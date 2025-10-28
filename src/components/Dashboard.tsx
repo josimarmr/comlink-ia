@@ -1,9 +1,10 @@
 import { Send, Puzzle, Zap, TrendingUp, Users, FileText, BarChart3 } from 'lucide-react'
+import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts'
 
 interface Message {
   role: 'user' | 'assistant'
   content: string
-  chart?: string
+  chartData?: { labels: string[], values: number[] }
   type?: 'text' | 'chart'
 }
 
@@ -28,6 +29,8 @@ export default function Dashboard({
   chatEndRef,
   inputRef
 }: DashboardProps) {
+  
+  const COLORS = ['#06b6d4', '#3b82f6', '#8b5cf6'];
   
   const quickActions = [
     { icon: TrendingUp, text: 'Estatísticas', query: 'Mostre as estatísticas gerais do sistema', gradient: 'from-cyan-500 to-blue-500' },
@@ -121,17 +124,47 @@ export default function Dashboard({
                         ? 'bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-500 text-white shadow-lg shadow-cyan-500/20'
                         : 'bg-slate-800/70 backdrop-blur-xl text-slate-100 border border-slate-700/50'
                     }`}>
-                      {msg.type === 'chart' && msg.chart ? (
-                        <div>
-                          <p style={{ whiteSpace: 'pre-line' }} className="mb-4 leading-relaxed font-medium">
-                            {msg.content}
-                          </p>
-                          <div dangerouslySetInnerHTML={{ __html: msg.chart }} />
+                      <p style={{ whiteSpace: 'pre-line' }} className="leading-relaxed font-medium mb-4">
+                        {msg.content}
+                      </p>
+                      
+                      {msg.type === 'chart' && msg.chartData && (
+                        <div className="bg-gradient-to-br from-slate-800 to-slate-900 p-6 rounded-2xl border border-slate-700/50">
+                          <h3 className="text-white text-lg font-bold mb-4">📊 Status das Cotações</h3>
+                          <ResponsiveContainer width="100%" height={300}>
+                            <PieChart>
+                              <Pie
+                                data={msg.chartData.labels.map((label, i) => ({
+                                  name: label,
+                                  value: msg.chartData!.values[i]
+                                }))}
+                                cx="50%"
+                                cy="50%"
+                                labelLine={false}
+                                label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                                outerRadius={100}
+                                fill="#8884d8"
+                                dataKey="value"
+                              >
+                                {msg.chartData.values.map((entry, index) => (
+                                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                ))}
+                              </Pie>
+                              <Tooltip 
+                                contentStyle={{ 
+                                  backgroundColor: '#1e293b', 
+                                  border: '1px solid #475569',
+                                  borderRadius: '8px',
+                                  color: '#fff'
+                                }} 
+                              />
+                              <Legend 
+                                wrapperStyle={{ color: '#fff' }}
+                                iconType="circle"
+                              />
+                            </PieChart>
+                          </ResponsiveContainer>
                         </div>
-                      ) : (
-                        <p style={{ whiteSpace: 'pre-line' }} className="leading-relaxed font-medium">
-                          {msg.content}
-                        </p>
                       )}
                     </div>
                     {msg.role === 'assistant' && (
