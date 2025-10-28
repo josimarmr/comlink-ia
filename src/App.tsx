@@ -1,187 +1,109 @@
-import { useState, useEffect, useRef } from 'react'
-import { MessageCircle, BarChart3, Shield, Menu, X, LogOut } from 'lucide-react'
-import Dashboard from './components/Dashboard'
-import Analytics from './components/Analytics'
-import AdminPanel from './components/AdminPanel'
-import Login from './components/Login'
+import { Send, Loader2 } from 'lucide-react'
 
-// URL da API do Worker
-const API_URL = 'https://comlink-api.josimarmarianocel.workers.dev'
+interface Message {
+  role: 'user' | 'assistant'
+  content: string
+  chart?: string
+  type?: 'text' | 'chart'
+}
 
-function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false)
-  const [currentPage, setCurrentPage] = useState<'dashboard' | 'analytics' | 'admin'>('dashboard')
-  const [messages, setMessages] = useState<Array<{ role: 'user' | 'assistant'; content: string }>>([])
-  const [input, setInput] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [sidebarOpen, setSidebarOpen] = useState(true)
-  const chatEndRef = useRef<HTMLDivElement>(null)
-  const inputRef = useRef<HTMLInputElement>(null)
+interface DashboardProps {
+  messages: Message[]
+  input: string
+  setInput: (value: string) => void
+  loading: boolean
+  sendMessage: () => void
+  handleKeyPress: (e: React.KeyboardEvent) => void
+  chatEndRef: React.RefObject<HTMLDivElement>
+  inputRef: React.RefObject<HTMLInputElement>
+}
 
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
-
-  useEffect(() => {
-    if (currentPage === 'dashboard') {
-      inputRef.current?.focus()
-    }
-  }, [currentPage])
-
-  const handleLogin = () => {
-    setIsLoggedIn(true)
-  }
-
-  const handleLogout = () => {
-    setIsLoggedIn(false)
-    setMessages([])
-    setCurrentPage('dashboard')
-  }
-
-  const sendMessage = async () => {
-    if (!input.trim() || loading) return
-
-    const userMessage = input.trim()
-    setInput('')
-    setMessages(prev => [...prev, { role: 'user', content: userMessage }])
-    setLoading(true)
-
-    try {
-      const response = await fetch(`${API_URL}/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: userMessage })
-      })
-
-      if (!response.ok) throw new Error('Erro na API')
-
-      const data = await response.json()
-      const assistantMessage = data.message || data.response || 'Sem resposta'
-      setMessages(prev => [...prev, { role: 'assistant', content: assistantMessage }])
-    } catch (error) {
-      console.error('Erro:', error)
-      setMessages(prev => [...prev, { 
-        role: 'assistant', 
-        content: 'Desculpe, ocorreu um erro ao processar sua mensagem. Tente novamente.' 
-      }])
-    } finally {
-      setLoading(false)
-      setTimeout(() => inputRef.current?.focus(), 100)
-    }
-  }
-
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      sendMessage()
-    }
-  }
-
-  if (!isLoggedIn) {
-    return <Login onLogin={handleLogin} />
-  }
-
+export default function Dashboard({
+  messages,
+  input,
+  setInput,
+  loading,
+  sendMessage,
+  handleKeyPress,
+  chatEndRef,
+  inputRef
+}: DashboardProps) {
   return (
-    <div className="flex h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
-      <div className={`${sidebarOpen ? 'w-64' : 'w-0'} transition-all duration-300 bg-slate-900/50 backdrop-blur-xl border-r border-cyan-500/20 overflow-hidden`}>
-        <div className="p-6">
-          <div className="flex items-center justify-center mb-8">
-            <div className="bg-white rounded-2xl p-6 shadow-2xl shadow-cyan-500/30">
-              <img src="/logo.png" alt="COMLINK" className="h-32 w-auto" />
+    <div className="h-full flex flex-col p-6">
+      {/* Chat Messages */}
+      <div className="flex-1 overflow-y-auto mb-4 space-y-4">
+        {messages.length === 0 && (
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center">
+              <div className="text-6xl mb-4">🤖</div>
+              <h2 className="text-2xl font-bold text-slate-200 mb-2">
+                Olá! Sou a COMLINK IA
+              </h2>
+              <p className="text-slate-400">
+                Pergunte sobre cotações, fornecedores ou peça gráficos!
+              </p>
             </div>
           </div>
+        )}
 
-          <div className="mb-6 p-4 bg-slate-800/30 rounded-xl border border-cyan-500/20">
-            <p className="text-xs text-slate-400 mb-1">Fornecedor</p>
-            <p className="text-sm font-semibold text-cyan-400">JM TECNOLOGIA</p>
-          </div>
-
-          <nav className="space-y-2">
-            <button
-              onClick={() => setCurrentPage('dashboard')}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-                currentPage === 'dashboard'
-                  ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg shadow-cyan-500/50'
-                  : 'text-slate-300 hover:bg-slate-800/50'
-              }`}
-            >
-              <MessageCircle className="w-5 h-5" />
-              <span className="font-medium">Chat IA</span>
-            </button>
-
-            <button
-              onClick={() => setCurrentPage('analytics')}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-                currentPage === 'analytics'
-                  ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg shadow-cyan-500/50'
-                  : 'text-slate-300 hover:bg-slate-800/50'
-              }`}
-            >
-              <BarChart3 className="w-5 h-5" />
-              <span className="font-medium">Analytics</span>
-            </button>
-
-            <button
-              onClick={() => setCurrentPage('admin')}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-                currentPage === 'admin'
-                  ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg shadow-cyan-500/50'
-                  : 'text-slate-300 hover:bg-slate-800/50'
-              }`}
-            >
-              <Shield className="w-5 h-5" />
-              <span className="font-medium">Painel Admin</span>
-            </button>
-          </nav>
-
-          <button
-            onClick={handleLogout}
-            className="w-full mt-6 flex items-center gap-3 px-4 py-3 rounded-xl text-red-400 hover:bg-red-500/10 transition-all border border-red-500/20"
+        {messages.map((msg, idx) => (
+          <div
+            key={idx}
+            className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
           >
-            <LogOut className="w-5 h-5" />
-            <span className="font-medium">Sair</span>
-          </button>
-        </div>
+            <div
+              className={`max-w-[70%] rounded-2xl px-6 py-4 ${
+                msg.role === 'user'
+                  ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg shadow-cyan-500/30'
+                  : 'bg-slate-800/50 text-slate-200 border border-slate-700/50'
+              }`}
+            >
+              {msg.type === 'chart' && msg.chart ? (
+                <div>
+                  <p className="whitespace-pre-wrap mb-4">{msg.content}</p>
+                  <div dangerouslySetInnerHTML={{ __html: msg.chart }} />
+                </div>
+              ) : (
+                <p className="whitespace-pre-wrap">{msg.content}</p>
+              )}
+            </div>
+          </div>
+        ))}
+
+        {loading && (
+          <div className="flex justify-start">
+            <div className="bg-slate-800/50 border border-slate-700/50 rounded-2xl px-6 py-4">
+              <Loader2 className="w-5 h-5 animate-spin text-cyan-400" />
+            </div>
+          </div>
+        )}
+
+        <div ref={chatEndRef} />
       </div>
 
-      <div className="flex-1 flex flex-col">
-        <header className="bg-slate-900/50 backdrop-blur-xl border-b border-cyan-500/20 px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => setSidebarOpen(!sidebarOpen)}
-                className="p-2 hover:bg-slate-800/50 rounded-lg transition-colors"
-              >
-                {sidebarOpen ? <X className="w-6 h-6 text-slate-300" /> : <Menu className="w-6 h-6 text-slate-300" />}
-              </button>
-              <div>
-                <h1 className="text-xl font-bold text-white">Portal do Fornecedor</h1>
-                <p className="text-xs text-slate-400">Gestão de Cotações Recebidas</p>
-              </div>
-            </div>
-          </div>
-        </header>
-
-        <main className="flex-1 overflow-hidden">
-          {currentPage === 'dashboard' && (
-            <Dashboard
-              messages={messages}
-              input={input}
-              setInput={setInput}
-              loading={loading}
-              sendMessage={sendMessage}
-              handleKeyPress={handleKeyPress}
-              chatEndRef={chatEndRef}
-              inputRef={inputRef}
-            />
-          )}
-          {currentPage === 'analytics' && <Analytics />}
-          {currentPage === 'admin' && <AdminPanel />}
-        </main>
+      {/* Input */}
+      <div className="bg-slate-800/30 backdrop-blur-xl rounded-2xl border border-slate-700/50 p-4">
+        <div className="flex gap-3">
+          <input
+            ref={inputRef}
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyPress={handleKeyPress}
+            placeholder="Digite sua pergunta ou peça um gráfico..."
+            disabled={loading}
+            className="flex-1 bg-slate-900/50 text-slate-200 placeholder-slate-500 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 disabled:opacity-50"
+            autoFocus
+          />
+          <button
+            onClick={sendMessage}
+            disabled={loading || !input.trim()}
+            className="bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl px-6 py-3 transition-all shadow-lg shadow-cyan-500/30"
+          >
+            <Send className="w-5 h-5" />
+          </button>
+        </div>
       </div>
     </div>
   )
 }
-
-export default App
-
