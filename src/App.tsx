@@ -104,81 +104,106 @@ function App() {
   }
 
   return (
-    <div className="flex h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
-      <div className={`${sidebarOpen ? 'w-64' : 'w-0'} transition-all duration-300 bg-slate-900/50 backdrop-blur-xl border-r border-cyan-500/20 overflow-hidden`}>
+    <div className="flex h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 relative overflow-hidden">
+      {/* Background Effects */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-0 right-0 w-96 h-96 bg-cyan-500/5 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 left-0 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl" />
+      </div>
+
+      {/* Sidebar */}
+      <div className={`${sidebarOpen ? 'w-72' : 'w-0'} transition-all duration-300 bg-slate-900/70 backdrop-blur-2xl border-r border-slate-800/50 overflow-hidden relative z-10`}>
         <div className="p-6">
+          {/* Logo */}
           <div className="flex items-center justify-center mb-8">
-            <div className="bg-white rounded-2xl p-6 shadow-2xl shadow-cyan-500/30">
-              <img src="/logo.png" alt="COMLINK" className="h-32 w-auto" />
+            <div className="relative">
+              <div className="absolute inset-0 bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-500 rounded-2xl blur-xl opacity-50" />
+              <div className="relative bg-white rounded-2xl p-5 shadow-2xl">
+                <img src="/logo.png" alt="COMLINK" className="h-28 w-auto" />
+              </div>
             </div>
           </div>
 
-          <div className="mb-6 p-4 bg-slate-800/30 rounded-xl border border-cyan-500/20">
-            <p className="text-xs text-slate-400 mb-1">Fornecedor</p>
-            <p className="text-sm font-semibold text-cyan-400">JM TECNOLOGIA</p>
+          {/* Fornecedor Info */}
+          <div className="mb-8 p-4 bg-gradient-to-br from-slate-800/50 to-slate-800/30 backdrop-blur-xl rounded-2xl border border-slate-700/50">
+            <p className="text-xs text-slate-400 mb-1 font-semibold">Fornecedor</p>
+            <p className="text-sm font-bold bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">JM TECNOLOGIA</p>
+            <div className="flex items-center gap-2 mt-2">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+              <p className="text-xs text-slate-500">Online</p>
+            </div>
           </div>
 
-          <nav className="space-y-2">
+          {/* Navigation */}
+          <nav className="space-y-2 mb-8">
             <button
               onClick={() => setCurrentPage('dashboard')}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+              className={`w-full flex items-center gap-3 px-4 py-4 rounded-2xl transition-all group ${
                 currentPage === 'dashboard'
-                  ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg shadow-cyan-500/50'
+                  ? 'bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-500 text-white shadow-lg shadow-cyan-500/30'
                   : 'text-slate-300 hover:bg-slate-800/50'
               }`}
             >
-              <MessageCircle className="w-5 h-5" />
-              <span className="font-medium">Chat IA</span>
+              <MessageCircle className={`w-5 h-5 ${currentPage === 'dashboard' ? '' : 'group-hover:scale-110 transition-transform'}`} />
+              <span className="font-semibold">Chat IA</span>
             </button>
 
             <button
               onClick={() => setCurrentPage('analytics')}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+              className={`w-full flex items-center gap-3 px-4 py-4 rounded-2xl transition-all group ${
                 currentPage === 'analytics'
-                  ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg shadow-cyan-500/50'
+                  ? 'bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-500 text-white shadow-lg shadow-cyan-500/30'
                   : 'text-slate-300 hover:bg-slate-800/50'
               }`}
             >
-              <BarChart3 className="w-5 h-5" />
-              <span className="font-medium">Analytics</span>
+              <BarChart3 className={`w-5 h-5 ${currentPage === 'analytics' ? '' : 'group-hover:scale-110 transition-transform'}`} />
+              <span className="font-semibold">Analytics</span>
             </button>
 
             <button
               onClick={() => setCurrentPage('admin')}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+              className={`w-full flex items-center gap-3 px-4 py-4 rounded-2xl transition-all group ${
                 currentPage === 'admin'
-                  ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg shadow-cyan-500/50'
+                  ? 'bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-500 text-white shadow-lg shadow-cyan-500/30'
                   : 'text-slate-300 hover:bg-slate-800/50'
               }`}
             >
-              <Shield className="w-5 h-5" />
-              <span className="font-medium">Painel Admin</span>
+              <Shield className={`w-5 h-5 ${currentPage === 'admin' ? '' : 'group-hover:scale-110 transition-transform'}`} />
+              <span className="font-semibold">Painel Admin</span>
             </button>
           </nav>
 
+          {/* Logout Button */}
           <button
             onClick={handleLogout}
-            className="w-full mt-6 flex items-center gap-3 px-4 py-3 rounded-xl text-red-400 hover:bg-red-500/10 transition-all border border-red-500/20"
+            className="w-full flex items-center gap-3 px-4 py-4 rounded-2xl text-red-400 hover:bg-red-500/10 transition-all border border-red-500/20 hover:border-red-500/40 group"
           >
-            <LogOut className="w-5 h-5" />
-            <span className="font-medium">Sair</span>
+            <LogOut className="w-5 h-5 group-hover:scale-110 transition-transform" />
+            <span className="font-semibold">Sair</span>
           </button>
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col">
-        <header className="bg-slate-900/50 backdrop-blur-xl border-b border-cyan-500/20 px-6 py-4">
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col relative z-10">
+        {/* Header */}
+        <header className="bg-slate-900/70 backdrop-blur-2xl border-b border-slate-800/50 px-6 py-4 shadow-lg">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <button
                 onClick={() => setSidebarOpen(!sidebarOpen)}
-                className="p-2 hover:bg-slate-800/50 rounded-lg transition-colors"
+                className="p-2 hover:bg-slate-800/50 rounded-xl transition-colors group"
               >
-                {sidebarOpen ? <X className="w-6 h-6 text-slate-300" /> : <Menu className="w-6 h-6 text-slate-300" />}
+                {sidebarOpen ? 
+                  <X className="w-6 h-6 text-slate-300 group-hover:text-white group-hover:rotate-90 transition-all" /> : 
+                  <Menu className="w-6 h-6 text-slate-300 group-hover:text-white group-hover:scale-110 transition-all" />
+                }
               </button>
               <div>
-                <h1 className="text-xl font-bold text-white">Portal do Fornecedor</h1>
-                <p className="text-xs text-slate-400">Gestão de Cotações Recebidas</p>
+                <h1 className="text-xl font-black bg-gradient-to-r from-cyan-400 via-blue-400 to-purple-400 bg-clip-text text-transparent">
+                  Portal do Fornecedor
+                </h1>
+                <p className="text-xs text-slate-400">Gestão Inteligente de Cotações</p>
               </div>
             </div>
           </div>
