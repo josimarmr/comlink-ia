@@ -3,6 +3,8 @@ import { Send, Loader2 } from 'lucide-react'
 interface Message {
   role: 'user' | 'assistant'
   content: string
+  chart?: string
+  type?: 'text' | 'chart'
 }
 
 interface DashboardProps {
@@ -38,7 +40,7 @@ export default function Dashboard({
                 Olá! Sou a COMLINK IA
               </h2>
               <p className="text-slate-400">
-                Pergunte sobre cotações, fornecedores ou impulsionamento!
+                Pergunte sobre cotações, fornecedores ou peça gráficos!
               </p>
             </div>
           </div>
@@ -56,7 +58,14 @@ export default function Dashboard({
                   : 'bg-slate-800/50 text-slate-200 border border-slate-700/50'
               }`}
             >
-              <p className="whitespace-pre-wrap">{msg.content}</p>
+              {msg.type === 'chart' && msg.chart ? (
+                <div>
+                  <p className="whitespace-pre-wrap mb-4">{msg.content}</p>
+                  <div dangerouslySetInnerHTML={{ __html: msg.chart }} />
+                </div>
+              ) : (
+                <p className="whitespace-pre-wrap">{msg.content}</p>
+              )}
             </div>
           </div>
         ))}
@@ -81,7 +90,7 @@ export default function Dashboard({
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder="Digite sua pergunta..."
+            placeholder="Digite sua pergunta ou peça um gráfico..."
             disabled={loading}
             className="flex-1 bg-slate-900/50 text-slate-200 placeholder-slate-500 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 disabled:opacity-50"
             autoFocus
@@ -98,4 +107,3 @@ export default function Dashboard({
     </div>
   )
 }
-
