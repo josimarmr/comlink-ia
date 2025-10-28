@@ -1,4 +1,4 @@
-import { Send, Sparkles, Zap, TrendingUp, Users, FileText, BarChart3 } from 'lucide-react'
+import { Send, Puzzle, Zap, TrendingUp, Users, FileText, BarChart3 } from 'lucide-react'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -59,7 +59,7 @@ export default function Dashboard({
                 <div className="relative inline-block mb-8">
                   <div className="absolute inset-0 bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-500 rounded-3xl blur-2xl opacity-50 animate-pulse" />
                   <div className="relative w-28 h-28 bg-gradient-to-br from-cyan-500 via-blue-500 to-purple-500 rounded-3xl flex items-center justify-center shadow-2xl">
-                    <Sparkles className="w-14 h-14 text-white animate-spin-slow" />
+                    <Puzzle className="w-14 h-14 text-white" />
                   </div>
                 </div>
                 
@@ -110,7 +110,7 @@ export default function Dashboard({
                   {msg.role === 'assistant' && (
                     <div className="flex-shrink-0">
                       <div className="w-10 h-10 bg-gradient-to-br from-cyan-500 via-blue-500 to-purple-500 rounded-xl flex items-center justify-center shadow-lg shadow-cyan-500/30">
-                        <Sparkles className="w-5 h-5 text-white" />
+                        <Puzzle className="w-5 h-5 text-white" />
                       </div>
                     </div>
                   )}
@@ -156,7 +156,7 @@ export default function Dashboard({
                 <div className="flex gap-4 justify-start animate-slideUp">
                   <div className="flex-shrink-0">
                     <div className="w-10 h-10 bg-gradient-to-br from-cyan-500 via-blue-500 to-purple-500 rounded-xl flex items-center justify-center shadow-lg shadow-cyan-500/30">
-                      <Sparkles className="w-5 h-5 text-white animate-spin" />
+                      <Puzzle className="w-5 h-5 text-white animate-spin" />
                     </div>
                   </div>
                   <div className="bg-slate-800/70 backdrop-blur-xl border border-slate-700/50 rounded-2xl px-6 py-4">
