@@ -10,7 +10,7 @@ const API_URL = 'https://comlink-api.josimarmarianocel.workers.dev'
 interface Message {
   role: 'user' | 'assistant'
   content: string
-  chart?: string
+  chartData?: { labels: string[], values: number[] }
   type?: 'text' | 'chart'
 }
 
