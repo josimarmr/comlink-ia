@@ -44,7 +44,9 @@ function App() {
       if (!response.ok) throw new Error('Erro na API')
 
       const data = await response.json()
-      setMessages(prev => [...prev, { role: 'assistant', content: data.response }])
+      // A API retorna { message: "...", stats: {...} }
+      const assistantMessage = data.message || data.response || 'Sem resposta'
+      setMessages(prev => [...prev, { role: 'assistant', content: assistantMessage }])
     } catch (error) {
       console.error('Erro:', error)
       setMessages(prev => [...prev, { 
@@ -71,9 +73,7 @@ function App() {
         <div className="p-6">
           {/* Logo */}
           <div className="flex items-center justify-center mb-8">
-            <div className="bg-white rounded-2xl p-4 shadow-2xl shadow-cyan-500/20">
-              <img src="/logo.png" alt="COMLINK" className="h-32 w-auto" />
-            </div>
+            <img src="/logo.png" alt="COMLINK" className="w-full h-auto px-4" />
           </div>
 
           {/* Menu */}
