@@ -60,11 +60,11 @@ export default function Dashboard({
             >
               {msg.type === 'chart' && msg.chart ? (
                 <div>
-                  <p className="whitespace-pre-wrap mb-4">{msg.content}</p>
+                  <p style={{ whiteSpace: 'pre-line' }} className="mb-4">{msg.content}</p>
                   <div dangerouslySetInnerHTML={{ __html: msg.chart }} />
                 </div>
               ) : (
-                <p className="whitespace-pre-wrap">{msg.content}</p>
+                <p style={{ whiteSpace: 'pre-line' }}>{msg.content}</p>
               )}
             </div>
           </div>
