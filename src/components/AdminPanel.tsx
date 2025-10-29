@@ -1,486 +1,743 @@
 import { useState, useEffect } from 'react'
-import { X, Users, Building2, Mail, Lock, Edit2, Trash2, Save, XCircle, Search, Filter } from 'lucide-react'
+import { 
+  X, Users, Building2, Search, Edit2, Trash2, 
+  Lock, Plus, Save, AlertCircle, CheckCircle, Eye, EyeOff
+} from 'lucide-react'
 
-// ✅ INTERFACE CORRETA - Alinhada com a estrutura do banco
 interface Usuario {
   id: number
-  nome_completo: string      // ✅ Correto
-  email: string              // ✅ Correto
-  empresa_cod: string        // ✅ Correto (vem do JOIN)
-  empresa_nome: string       // ✅ Correto (vem do JOIN)
-  perfil: string            // ✅ Correto
-  acesso_ia: number         // ✅ Correto
-  ativo: number             // ✅ Correto
+  email: string
+  nome_completo: string
+  perfil: 'super_admin' | 'consultor'
+  acesso_ia: number
+  ativo: number
+  empresa_cod: string
+  empresa_nome: string
+}
+
+interface Empresa {
+  id: number
+  cod: string
+  razao_social: string
+  cnpj: string
+  ativa: number
+  total_usuarios: number
 }
 
 interface AdminPanelProps {
   onClose: () => void
+  userToken?: string
 }
 
-export default function AdminPanel({ onClose }: AdminPanelProps) {
+export default function AdminPanel({ onClose, userToken }: AdminPanelProps) {
+  const [activeTab, setActiveTab] = useState<'usuarios' | 'empresas'>('usuarios')
   const [usuarios, setUsuarios] = useState<Usuario[]>([])
-  const [loading, setLoading] = useState(true)
-  const [editingId, setEditingId] = useState<number | null>(null)
-  const [editData, setEditData] = useState<Partial<Usuario>>({})
+  const [empresas, setEmpresas] = useState<Empresa[]>([])
+  const [loading, setLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
-  const [filterCod, setFilterCod] = useState<string>('all')
-  const [empresas, setEmpresas] = useState<string[]>([])
+  const [empresaFilter, setEmpresaFilter] = useState('')
+  
+  // Estados de edição
+  const [editingUser, setEditingUser] = useState<Usuario | null>(null)
+  const [showPasswordModal, setShowPasswordModal] = useState(false)
+  const [userToChangePassword, setUserToChangePassword] = useState<Usuario | null>(null)
+  const [newPassword, setNewPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  
+  // Estados de cadastro
+  const [showNewUserForm, setShowNewUserForm] = useState(false)
+  const [showNewEmpresaForm, setShowNewEmpresaForm] = useState(false)
+  const [newUser, setNewUser] = useState({
+    empresa_cod: '',
+    email: '',
+    nome_completo: '',
+    senha: '',
+    perfil: 'consultor' as 'super_admin' | 'consultor',
+    acesso_ia: false
+  })
+  const [newEmpresa, setNewEmpresa] = useState({
+    cod: '',
+    razao_social: '',
+    cnpj: ''
+  })
+  
+  const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
+
+  const API_URL = 'https://comlink-api.josimarmarianocel.workers.dev'
 
   useEffect(() => {
-    carregarUsuarios()
+    carregarDados()
   }, [])
 
-  const carregarUsuarios = async () => {
+  const carregarDados = async () => {
     setLoading(true)
     try {
-      const response = await fetch('https://comlink-api.josimarmarianocel.workers.dev/admin/usuarios')
-      const data = await response.json()
+      const [usersRes, empresasRes] = await Promise.all([
+        fetch(`${API_URL}/admin/usuarios`),
+        fetch(`${API_URL}/admin/empresas`)
+      ])
       
-      // ✅ API RETORNA ARRAY DIRETO (não tem .sucesso)
-      if (Array.isArray(data)) {
-        setUsuarios(data)
-        // Extrair empresas únicas
-        const codsUnicos = [...new Set(data.map((u: Usuario) => u.empresa_cod))]
-        setEmpresas(codsUnicos)
-      }
+      const usersData = await usersRes.json()
+      const empresasData = await empresasRes.json()
+      
+      setUsuarios(usersData)
+      setEmpresas(empresasData)
     } catch (error) {
-      console.error('Erro ao carregar usuários:', error)
-      alert('Erro ao carregar usuários')
+      showMessage('error', 'Erro ao carregar dados')
     } finally {
       setLoading(false)
     }
   }
 
-  const iniciarEdicao = (usuario: Usuario) => {
-    setEditingId(usuario.id)
-    setEditData({
-      nome_completo: usuario.nome_completo,  // ✅ Correto
-      email: usuario.email,
-      perfil: usuario.perfil,
-      acesso_ia: usuario.acesso_ia,
-      ativo: usuario.ativo
-    })
+  const showMessage = (type: 'success' | 'error', text: string) => {
+    setMessage({ type, text })
+    setTimeout(() => setMessage(null), 3000)
   }
 
-  const cancelarEdicao = () => {
-    setEditingId(null)
-    setEditData({})
-  }
+  // ==================== USUÁRIOS ====================
 
-  const salvarEdicao = async (id: number) => {
+  const handleSaveUser = async () => {
+    if (!editingUser) return
+    
+    setLoading(true)
     try {
-      const response = await fetch(`https://comlink-api.josimarmarianocel.workers.dev/admin/usuarios/${id}`, {
+      const response = await fetch(`${API_URL}/admin/usuarios/${editingUser.id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editData)
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${userToken}`
+        },
+        body: JSON.stringify({
+          nome_completo: editingUser.nome_completo,
+          email: editingUser.email,
+          perfil: editingUser.perfil,
+          acesso_ia: editingUser.acesso_ia,
+          ativo: editingUser.ativo
+        })
       })
 
       const data = await response.json()
 
       if (data.sucesso) {
-        alert('✅ Usuário atualizado com sucesso!')
-        setEditingId(null)
-        setEditData({})
-        carregarUsuarios()
+        showMessage('success', 'Usuário atualizado com sucesso')
+        setEditingUser(null)
+        carregarDados()
       } else {
-        alert('❌ ' + (data.mensagem || 'Erro ao atualizar usuário'))
+        showMessage('error', data.mensagem || 'Erro ao atualizar usuário')
       }
     } catch (error) {
-      console.error('Erro ao salvar:', error)
-      alert('❌ Erro ao salvar usuário')
+      showMessage('error', 'Erro ao atualizar usuário')
+    } finally {
+      setLoading(false)
     }
   }
 
-  const alterarSenha = async (id: number) => {
-    const novaSenha = prompt('Digite a nova senha (mínimo 6 caracteres):')
-    if (!novaSenha) return
-
-    if (novaSenha.length < 6) {
-      alert('❌ A senha deve ter pelo menos 6 caracteres')
+  const handleChangePassword = async () => {
+    if (!userToChangePassword || !newPassword) return
+    
+    if (newPassword.length < 6) {
+      showMessage('error', 'A senha deve ter pelo menos 6 caracteres')
       return
     }
 
+    setLoading(true)
     try {
-      const response = await fetch(`https://comlink-api.josimarmarianocel.workers.dev/admin/usuarios/${id}/senha`, {
+      const response = await fetch(`${API_URL}/admin/usuarios/${userToChangePassword.id}/senha`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ senha: novaSenha })
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${userToken}`
+        },
+        body: JSON.stringify({ senha: newPassword })
       })
 
       const data = await response.json()
 
       if (data.sucesso) {
-        alert('✅ Senha alterada com sucesso!')
+        showMessage('success', 'Senha alterada com sucesso')
+        setShowPasswordModal(false)
+        setUserToChangePassword(null)
+        setNewPassword('')
       } else {
-        alert('❌ ' + (data.mensagem || 'Erro ao alterar senha'))
+        showMessage('error', data.mensagem || 'Erro ao alterar senha')
       }
     } catch (error) {
-      console.error('Erro ao alterar senha:', error)
-      alert('❌ Erro ao alterar senha')
+      showMessage('error', 'Erro ao alterar senha')
+    } finally {
+      setLoading(false)
     }
   }
 
-  const excluirUsuario = async (id: number, nome: string) => {
-    if (!confirm(`❌ Tem certeza que deseja excluir o usuário "${nome}"?`)) return
+  const handleDeleteUser = async (user: Usuario) => {
+    if (!confirm(`Tem certeza que deseja excluir ${user.nome_completo}?`)) return
 
+    setLoading(true)
     try {
-      const response = await fetch(`https://comlink-api.josimarmarianocel.workers.dev/admin/usuarios/${id}`, {
-        method: 'DELETE'
+      const response = await fetch(`${API_URL}/admin/usuarios/${user.id}`, {
+        method: 'DELETE',
+        headers: { 
+          'Authorization': `Bearer ${userToken}`
+        }
       })
 
       const data = await response.json()
 
       if (data.sucesso) {
-        alert('✅ Usuário excluído com sucesso!')
-        carregarUsuarios()
+        showMessage('success', 'Usuário excluído com sucesso')
+        carregarDados()
       } else {
-        alert('❌ ' + (data.mensagem || 'Erro ao excluir usuário'))
+        showMessage('error', data.mensagem || 'Erro ao excluir usuário')
       }
     } catch (error) {
-      console.error('Erro ao excluir:', error)
-      alert('❌ Erro ao excluir usuário')
+      showMessage('error', 'Erro ao excluir usuário')
+    } finally {
+      setLoading(false)
     }
   }
 
-  // Filtrar usuários
-  const usuariosFiltrados = usuarios.filter(usuario => {
-    const matchSearch = 
-      usuario.nome_completo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      usuario.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      usuario.empresa_nome.toLowerCase().includes(searchTerm.toLowerCase())
-    
-    const matchEmpresa = filterCod === 'all' || usuario.empresa_cod === filterCod
+  const handleCreateUser = async () => {
+    if (!newUser.empresa_cod || !newUser.email || !newUser.nome_completo || !newUser.senha) {
+      showMessage('error', 'Preencha todos os campos obrigatórios')
+      return
+    }
 
+    setLoading(true)
+    try {
+      const response = await fetch(`${API_URL}/admin/usuarios`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${userToken}`
+        },
+        body: JSON.stringify(newUser)
+      })
+
+      const data = await response.json()
+
+      if (data.sucesso) {
+        showMessage('success', 'Usuário cadastrado com sucesso')
+        setShowNewUserForm(false)
+        setNewUser({
+          empresa_cod: '',
+          email: '',
+          nome_completo: '',
+          senha: '',
+          perfil: 'consultor',
+          acesso_ia: false
+        })
+        carregarDados()
+      } else {
+        showMessage('error', data.mensagem || 'Erro ao cadastrar usuário')
+      }
+    } catch (error) {
+      showMessage('error', 'Erro ao cadastrar usuário')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // ==================== EMPRESAS ====================
+
+  const handleCreateEmpresa = async () => {
+    if (!newEmpresa.cod || !newEmpresa.razao_social) {
+      showMessage('error', 'COD e razão social são obrigatórios')
+      return
+    }
+
+    setLoading(true)
+    try {
+      const response = await fetch(`${API_URL}/admin/empresas`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${userToken}`
+        },
+        body: JSON.stringify(newEmpresa)
+      })
+
+      const data = await response.json()
+
+      if (data.sucesso) {
+        showMessage('success', 'Empresa cadastrada com sucesso')
+        setShowNewEmpresaForm(false)
+        setNewEmpresa({ cod: '', razao_social: '', cnpj: '' })
+        carregarDados()
+      } else {
+        showMessage('error', data.mensagem || 'Erro ao cadastrar empresa')
+      }
+    } catch (error) {
+      showMessage('error', 'Erro ao cadastrar empresa')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // ==================== FILTROS ====================
+
+  const filteredUsers = usuarios.filter(user => {
+    const matchSearch = user.nome_completo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                       user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                       user.empresa_nome.toLowerCase().includes(searchTerm.toLowerCase())
+    const matchEmpresa = !empresaFilter || user.empresa_cod === empresaFilter
     return matchSearch && matchEmpresa
   })
 
-  // Agrupar por empresa
-  const usuariosPorEmpresa = empresas.reduce((acc, cod) => {
-    acc[cod] = usuariosFiltrados.filter(u => u.empresa_cod === cod)
+  const groupedUsers = filteredUsers.reduce((acc, user) => {
+    if (!acc[user.empresa_nome]) {
+      acc[user.empresa_nome] = []
+    }
+    acc[user.empresa_nome].push(user)
     return acc
   }, {} as Record<string, Usuario[]>)
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
         {/* Header */}
-        <div className="p-6 border-b border-slate-800 bg-gradient-to-r from-purple-500/10 to-blue-500/10">
+        <div className="p-6 border-b border-slate-700">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-blue-600 rounded-xl flex items-center justify-center">
-                <Users className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h2 className="text-2xl font-bold text-white">Painel Administrativo</h2>
-                <p className="text-slate-400 text-sm">Gerenciar usuários do sistema</p>
-              </div>
+            <div>
+              <h2 className="text-2xl font-bold text-white">Painel Administrativo</h2>
+              <p className="text-slate-400 text-sm mt-1">Gerenciar usuários e empresas</p>
             </div>
-            <button
-              onClick={onClose}
-              className="p-2 hover:bg-slate-800 rounded-lg transition-colors text-slate-400 hover:text-white"
-            >
+            <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
               <X className="w-6 h-6" />
+            </button>
+          </div>
+
+          {/* Tabs */}
+          <div className="flex gap-2 mt-6">
+            <button
+              onClick={() => setActiveTab('usuarios')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+                activeTab === 'usuarios'
+                  ? 'bg-cyan-500 text-white'
+                  : 'bg-slate-800 text-slate-400 hover:text-white'
+              }`}
+            >
+              <Users className="w-4 h-4" />
+              Usuários ({usuarios.length})
+            </button>
+            <button
+              onClick={() => setActiveTab('empresas')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+                activeTab === 'empresas'
+                  ? 'bg-cyan-500 text-white'
+                  : 'bg-slate-800 text-slate-400 hover:text-white'
+              }`}
+            >
+              <Building2 className="w-4 h-4" />
+              Empresas ({empresas.length})
             </button>
           </div>
         </div>
 
-        {/* Filtros */}
-        <div className="p-6 border-b border-slate-800 space-y-4">
-          <div className="flex gap-4">
-            {/* Busca */}
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Buscar por nome, email ou empresa..."
-                className="w-full pl-10 pr-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20"
-              />
-            </div>
-
-            {/* Filtro por Empresa */}
-            <div className="relative">
-              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-              <select
-                value={filterCod}
-                onChange={(e) => setFilterCod(e.target.value)}
-                className="pl-10 pr-8 py-3 bg-slate-800/50 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 appearance-none cursor-pointer"
-              >
-                <option value="all">Todas as Empresas</option>
-                {empresas.map(cod => (
-                  <option key={cod} value={cod}>{cod.toUpperCase()}</option>
-                ))}
-              </select>
-            </div>
+        {/* Message */}
+        {message && (
+          <div className={`mx-6 mt-4 p-4 rounded-xl flex items-center gap-3 ${
+            message.type === 'success' ? 'bg-green-500/10 border border-green-500/20 text-green-400' :
+            'bg-red-500/10 border border-red-500/20 text-red-400'
+          }`}>
+            {message.type === 'success' ? <CheckCircle className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
+            <span>{message.text}</span>
           </div>
+        )}
 
-          {/* Estatísticas */}
-          <div className="flex gap-4">
-            <div className="flex-1 p-4 bg-slate-800/30 rounded-xl border border-slate-700/50">
-              <p className="text-slate-400 text-sm">Total de Usuários</p>
-              <p className="text-2xl font-bold text-white">{usuariosFiltrados.length}</p>
-            </div>
-            <div className="flex-1 p-4 bg-slate-800/30 rounded-xl border border-slate-700/50">
-              <p className="text-slate-400 text-sm">Empresas</p>
-              <p className="text-2xl font-bold text-white">{empresas.length}</p>
-            </div>
-            <div className="flex-1 p-4 bg-slate-800/30 rounded-xl border border-slate-700/50">
-              <p className="text-slate-400 text-sm">Usuários Ativos</p>
-              <p className="text-2xl font-bold text-green-400">
-                {usuariosFiltrados.filter(u => u.ativo === 1).length}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Lista de Usuários */}
+        {/* Content */}
         <div className="flex-1 overflow-y-auto p-6">
-          {loading ? (
-            <div className="text-center py-12">
-              <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-slate-700 border-t-cyan-500"></div>
-              <p className="text-slate-400 mt-4">Carregando usuários...</p>
-            </div>
-          ) : filterCod === 'all' ? (
-            /* Agrupado por Empresa */
+          {activeTab === 'usuarios' && (
             <div className="space-y-6">
-              {empresas.map(cod => {
-                const usuariosEmpresa = usuariosPorEmpresa[cod]
-                if (usuariosEmpresa.length === 0) return null
+              {/* Actions */}
+              <div className="flex gap-4">
+                <div className="flex-1 relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                  <input
+                    type="text"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    placeholder="Buscar usuários..."
+                    className="w-full pl-10 pr-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
+                  />
+                </div>
+                <select
+                  value={empresaFilter}
+                  onChange={(e) => setEmpresaFilter(e.target.value)}
+                  className="px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-cyan-500"
+                >
+                  <option value="">Todas empresas</option>
+                  {empresas.map(emp => (
+                    <option key={emp.id} value={emp.cod}>{emp.razao_social}</option>
+                  ))}
+                </select>
+                <button
+                  onClick={() => setShowNewUserForm(true)}
+                  className="px-4 py-3 bg-cyan-500 text-white rounded-xl hover:bg-cyan-600 transition-colors flex items-center gap-2"
+                >
+                  <Plus className="w-5 h-5" />
+                  Novo Usuário
+                </button>
+              </div>
 
-                const nomeEmpresa = usuariosEmpresa[0]?.empresa_nome || cod
-
-                return (
-                  <div key={cod} className="space-y-3">
-                    <div className="flex items-center gap-2 px-4 py-2 bg-slate-800/30 rounded-lg border border-slate-700/50">
-                      <Building2 className="w-5 h-5 text-cyan-400" />
-                      <div className="flex-1">
-                        <h3 className="text-lg font-bold text-white">{nomeEmpresa}</h3>
-                        <p className="text-xs text-slate-400">COD: {cod.toUpperCase()}</p>
+              {/* Users List */}
+              {Object.entries(groupedUsers).map(([empresaNome, users]) => (
+                <div key={empresaNome} className="space-y-3">
+                  <h3 className="text-lg font-semibold text-cyan-400">{empresaNome}</h3>
+                  <div className="space-y-2">
+                    {users.map(user => (
+                      <div key={user.id} className="bg-slate-800 border border-slate-700 rounded-xl p-4">
+                        {editingUser?.id === user.id ? (
+                          // Edit Mode
+                          <div className="space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                              <input
+                                type="text"
+                                value={editingUser.nome_completo}
+                                onChange={(e) => setEditingUser({ ...editingUser, nome_completo: e.target.value })}
+                                className="px-3 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white"
+                                placeholder="Nome completo"
+                              />
+                              <input
+                                type="email"
+                                value={editingUser.email}
+                                onChange={(e) => setEditingUser({ ...editingUser, email: e.target.value })}
+                                className="px-3 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white"
+                                placeholder="Email"
+                              />
+                            </div>
+                            <div className="grid grid-cols-3 gap-4">
+                              <select
+                                value={editingUser.perfil}
+                                onChange={(e) => setEditingUser({ ...editingUser, perfil: e.target.value as 'super_admin' | 'consultor' })}
+                                className="px-3 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white"
+                              >
+                                <option value="super_admin">Super Admin</option>
+                                <option value="consultor">Consultor</option>
+                              </select>
+                              <label className="flex items-center gap-2 text-white">
+                                <input
+                                  type="checkbox"
+                                  checked={editingUser.acesso_ia === 1}
+                                  onChange={(e) => setEditingUser({ ...editingUser, acesso_ia: e.target.checked ? 1 : 0 })}
+                                  className="w-4 h-4"
+                                />
+                                Acesso IA
+                              </label>
+                              <label className="flex items-center gap-2 text-white">
+                                <input
+                                  type="checkbox"
+                                  checked={editingUser.ativo === 1}
+                                  onChange={(e) => setEditingUser({ ...editingUser, ativo: e.target.checked ? 1 : 0 })}
+                                  className="w-4 h-4"
+                                />
+                                Ativo
+                              </label>
+                            </div>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={handleSaveUser}
+                                disabled={loading}
+                                className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 flex items-center gap-2"
+                              >
+                                <Save className="w-4 h-4" />
+                                Salvar
+                              </button>
+                              <button
+                                onClick={() => setEditingUser(null)}
+                                className="px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-600"
+                              >
+                                Cancelar
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          // View Mode
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-3">
+                                <h4 className="text-white font-medium">{user.nome_completo}</h4>
+                                <span className={`px-2 py-1 rounded text-xs ${
+                                  user.perfil === 'super_admin' ? 'bg-purple-500/20 text-purple-300' :
+                                  'bg-blue-500/20 text-blue-300'
+                                }`}>
+                                  {user.perfil === 'super_admin' ? 'Super Admin' : 'Consultor'}
+                                </span>
+                                {user.acesso_ia === 1 && (
+                                  <span className="px-2 py-1 bg-cyan-500/20 text-cyan-300 rounded text-xs">IA</span>
+                                )}
+                                {user.ativo === 0 && (
+                                  <span className="px-2 py-1 bg-red-500/20 text-red-300 rounded text-xs">Inativo</span>
+                                )}
+                              </div>
+                              <p className="text-slate-400 text-sm mt-1">{user.email}</p>
+                            </div>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => setEditingUser(user)}
+                                className="p-2 text-cyan-400 hover:bg-cyan-500/10 rounded-lg transition-colors"
+                                title="Editar"
+                              >
+                                <Edit2 className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setUserToChangePassword(user)
+                                  setShowPasswordModal(true)
+                                }}
+                                className="p-2 text-yellow-400 hover:bg-yellow-500/10 rounded-lg transition-colors"
+                                title="Alterar senha"
+                              >
+                                <Lock className="w-4 h-4" />
+                              </button>
+                              {user.perfil !== 'super_admin' && (
+                                <button
+                                  onClick={() => handleDeleteUser(user)}
+                                  className="p-2 text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                                  title="Excluir"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        )}
                       </div>
-                      <span className="text-slate-400 text-sm">
-                        {usuariosEmpresa.length} usuário{usuariosEmpresa.length !== 1 ? 's' : ''}
-                      </span>
-                    </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
 
-                    <div className="space-y-2">
-                      {usuariosEmpresa.map(usuario => (
-                        <UsuarioCard
-                          key={usuario.id}
-                          usuario={usuario}
-                          isEditing={editingId === usuario.id}
-                          editData={editData}
-                          setEditData={setEditData}
-                          onEdit={iniciarEdicao}
-                          onSave={salvarEdicao}
-                          onCancel={cancelarEdicao}
-                          onChangePassword={alterarSenha}
-                          onDelete={excluirUsuario}
-                        />
-                      ))}
+              {filteredUsers.length === 0 && (
+                <div className="text-center py-12 text-slate-400">
+                  Nenhum usuário encontrado
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'empresas' && (
+            <div className="space-y-6">
+              <div className="flex justify-end">
+                <button
+                  onClick={() => setShowNewEmpresaForm(true)}
+                  className="px-4 py-3 bg-cyan-500 text-white rounded-xl hover:bg-cyan-600 transition-colors flex items-center gap-2"
+                >
+                  <Plus className="w-5 h-5" />
+                  Nova Empresa
+                </button>
+              </div>
+
+              <div className="grid gap-4">
+                {empresas.map(empresa => (
+                  <div key={empresa.id} className="bg-slate-800 border border-slate-700 rounded-xl p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="flex items-center gap-3">
+                          <h4 className="text-white font-medium">{empresa.razao_social}</h4>
+                          <span className="px-2 py-1 bg-slate-700 text-slate-300 rounded text-xs">
+                            COD: {empresa.cod}
+                          </span>
+                          {empresa.ativa === 1 ? (
+                            <span className="px-2 py-1 bg-green-500/20 text-green-300 rounded text-xs">Ativa</span>
+                          ) : (
+                            <span className="px-2 py-1 bg-red-500/20 text-red-300 rounded text-xs">Inativa</span>
+                          )}
+                        </div>
+                        <div className="flex gap-4 mt-2">
+                          {empresa.cnpj && (
+                            <p className="text-slate-400 text-sm">CNPJ: {empresa.cnpj}</p>
+                          )}
+                          <p className="text-slate-400 text-sm">{empresa.total_usuarios} usuários</p>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                )
-              })}
+                ))}
+              </div>
             </div>
-          ) : (
-            /* Lista Simples (quando filtrado) */
-            <div className="space-y-2">
-              {usuariosFiltrados.map(usuario => (
-                <UsuarioCard
-                  key={usuario.id}
-                  usuario={usuario}
-                  isEditing={editingId === usuario.id}
-                  editData={editData}
-                  setEditData={setEditData}
-                  onEdit={iniciarEdicao}
-                  onSave={salvarEdicao}
-                  onCancel={cancelarEdicao}
-                  onChangePassword={alterarSenha}
-                  onDelete={excluirUsuario}
+          )}
+        </div>
+      </div>
+
+      {/* Modal: Nova Senha */}
+      {showPasswordModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[60] p-4">
+          <div className="bg-slate-800 border border-slate-700 rounded-xl p-6 max-w-md w-full">
+            <h3 className="text-xl font-bold text-white mb-4">Alterar Senha</h3>
+            <p className="text-slate-400 mb-4">
+              Usuário: <span className="text-white">{userToChangePassword?.nome_completo}</span>
+            </p>
+            <div className="relative mb-4">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="Nova senha (mínimo 6 caracteres)"
+                className="w-full px-4 py-3 bg-slate-900 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 pr-12"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-300"
+              >
+                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              </button>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={handleChangePassword}
+                disabled={loading || !newPassword}
+                className="flex-1 px-4 py-3 bg-cyan-500 text-white rounded-lg hover:bg-cyan-600 disabled:opacity-50"
+              >
+                Alterar Senha
+              </button>
+              <button
+                onClick={() => {
+                  setShowPasswordModal(false)
+                  setUserToChangePassword(null)
+                  setNewPassword('')
+                }}
+                className="px-4 py-3 bg-slate-700 text-white rounded-lg hover:bg-slate-600"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Novo Usuário */}
+      {showNewUserForm && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[60] p-4">
+          <div className="bg-slate-800 border border-slate-700 rounded-xl p-6 max-w-md w-full">
+            <h3 className="text-xl font-bold text-white mb-4">Novo Usuário</h3>
+            <div className="space-y-4">
+              <select
+                value={newUser.empresa_cod}
+                onChange={(e) => setNewUser({ ...newUser, empresa_cod: e.target.value })}
+                className="w-full px-4 py-3 bg-slate-900 border border-slate-600 rounded-lg text-white"
+              >
+                <option value="">Selecione a empresa</option>
+                {empresas.map(emp => (
+                  <option key={emp.id} value={emp.cod}>{emp.razao_social}</option>
+                ))}
+              </select>
+              <input
+                type="text"
+                value={newUser.nome_completo}
+                onChange={(e) => setNewUser({ ...newUser, nome_completo: e.target.value })}
+                placeholder="Nome completo"
+                className="w-full px-4 py-3 bg-slate-900 border border-slate-600 rounded-lg text-white"
+              />
+              <input
+                type="email"
+                value={newUser.email}
+                onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                placeholder="Email"
+                className="w-full px-4 py-3 bg-slate-900 border border-slate-600 rounded-lg text-white"
+              />
+              <input
+                type="password"
+                value={newUser.senha}
+                onChange={(e) => setNewUser({ ...newUser, senha: e.target.value })}
+                placeholder="Senha (mínimo 6 caracteres)"
+                className="w-full px-4 py-3 bg-slate-900 border border-slate-600 rounded-lg text-white"
+              />
+              <select
+                value={newUser.perfil}
+                onChange={(e) => setNewUser({ ...newUser, perfil: e.target.value as 'super_admin' | 'consultor' })}
+                className="w-full px-4 py-3 bg-slate-900 border border-slate-600 rounded-lg text-white"
+              >
+                <option value="consultor">Consultor</option>
+                <option value="super_admin">Super Admin</option>
+              </select>
+              <label className="flex items-center gap-2 text-white">
+                <input
+                  type="checkbox"
+                  checked={newUser.acesso_ia}
+                  onChange={(e) => setNewUser({ ...newUser, acesso_ia: e.target.checked })}
+                  className="w-4 h-4"
                 />
-              ))}
+                Acesso à IA
+              </label>
             </div>
-          )}
-
-          {usuariosFiltrados.length === 0 && !loading && (
-            <div className="text-center py-12">
-              <Users className="w-16 h-16 text-slate-700 mx-auto mb-4" />
-              <p className="text-slate-400">Nenhum usuário encontrado</p>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// Componente de Card do Usuário
-interface UsuarioCardProps {
-  usuario: Usuario
-  isEditing: boolean
-  editData: Partial<Usuario>
-  setEditData: (data: Partial<Usuario>) => void
-  onEdit: (usuario: Usuario) => void
-  onSave: (id: number) => void
-  onCancel: () => void
-  onChangePassword: (id: number) => void
-  onDelete: (id: number, nome: string) => void
-}
-
-function UsuarioCard({
-  usuario,
-  isEditing,
-  editData,
-  setEditData,
-  onEdit,
-  onSave,
-  onCancel,
-  onChangePassword,
-  onDelete
-}: UsuarioCardProps) {
-  if (isEditing) {
-    return (
-      <div className="p-4 bg-slate-800/50 border-2 border-cyan-500 rounded-xl space-y-3">
-        <div className="grid grid-cols-2 gap-3">
-          <div className="col-span-2">
-            <label className="block text-xs text-slate-400 mb-1">Nome Completo</label>
-            <input
-              type="text"
-              value={editData.nome_completo || ''}
-              onChange={(e) => setEditData({ ...editData, nome_completo: e.target.value })}
-              className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white text-sm focus:border-cyan-500 focus:outline-none"
-            />
-          </div>
-          <div className="col-span-2">
-            <label className="block text-xs text-slate-400 mb-1">Email</label>
-            <input
-              type="email"
-              value={editData.email || ''}
-              onChange={(e) => setEditData({ ...editData, email: e.target.value })}
-              className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white text-sm focus:border-cyan-500 focus:outline-none"
-            />
-          </div>
-          <div>
-            <label className="block text-xs text-slate-400 mb-1">Perfil</label>
-            <select
-              value={editData.perfil || 'usuario'}
-              onChange={(e) => setEditData({ ...editData, perfil: e.target.value })}
-              className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white text-sm focus:border-cyan-500 focus:outline-none"
-            >
-              <option value="usuario">Usuário</option>
-              <option value="admin">Admin</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs text-slate-400 mb-1">Status</label>
-            <select
-              value={editData.ativo || 1}
-              onChange={(e) => setEditData({ ...editData, ativo: Number(e.target.value) })}
-              className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white text-sm focus:border-cyan-500 focus:outline-none"
-            >
-              <option value={1}>Ativo</option>
-              <option value={0}>Inativo</option>
-            </select>
-          </div>
-          <div className="col-span-2">
-            <label className="block text-xs text-slate-400 mb-1">Acesso IA</label>
-            <select
-              value={editData.acesso_ia || 1}
-              onChange={(e) => setEditData({ ...editData, acesso_ia: Number(e.target.value) })}
-              className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white text-sm focus:border-cyan-500 focus:outline-none"
-            >
-              <option value={1}>Liberado</option>
-              <option value={0}>Bloqueado</option>
-            </select>
-          </div>
-        </div>
-
-        <div className="flex gap-2">
-          <button
-            onClick={() => onSave(usuario.id)}
-            className="flex-1 px-4 py-2 bg-green-500/20 border border-green-500/30 text-green-400 rounded-lg hover:bg-green-500/30 transition-all flex items-center justify-center gap-2"
-          >
-            <Save className="w-4 h-4" />
-            Salvar
-          </button>
-          <button
-            onClick={onCancel}
-            className="flex-1 px-4 py-2 bg-slate-700/50 border border-slate-600 text-slate-300 rounded-lg hover:bg-slate-700 transition-all flex items-center justify-center gap-2"
-          >
-            <XCircle className="w-4 h-4" />
-            Cancelar
-          </button>
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div className="p-4 bg-slate-800/30 border border-slate-700/50 rounded-xl hover:bg-slate-800/50 transition-all">
-      <div className="flex items-start justify-between">
-        <div className="flex-1">
-          <div className="flex items-center gap-3 mb-2">
-            <h3 className="text-lg font-semibold text-white">{usuario.nome_completo}</h3>
-            <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-              usuario.ativo === 1 
-                ? 'bg-green-500/20 text-green-400' 
-                : 'bg-red-500/20 text-red-400'
-            }`}>
-              {usuario.ativo === 1 ? 'Ativo' : 'Inativo'}
-            </span>
-            <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-              usuario.perfil === 'admin'
-                ? 'bg-purple-500/20 text-purple-400'
-                : 'bg-blue-500/20 text-blue-400'
-            }`}>
-              {usuario.perfil}
-            </span>
-            <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-              usuario.acesso_ia === 1
-                ? 'bg-cyan-500/20 text-cyan-400'
-                : 'bg-slate-500/20 text-slate-400'
-            }`}>
-              {usuario.acesso_ia === 1 ? '🤖 IA' : '🚫 Sem IA'}
-            </span>
-          </div>
-
-          <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm">
-            <div className="flex items-center gap-2 text-slate-400">
-              <Mail className="w-4 h-4" />
-              {usuario.email}
-            </div>
-            <div className="flex items-center gap-2 text-slate-400">
-              <Building2 className="w-4 h-4" />
-              {usuario.empresa_nome}
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={handleCreateUser}
+                disabled={loading}
+                className="flex-1 px-4 py-3 bg-cyan-500 text-white rounded-lg hover:bg-cyan-600 disabled:opacity-50"
+              >
+                Cadastrar
+              </button>
+              <button
+                onClick={() => {
+                  setShowNewUserForm(false)
+                  setNewUser({
+                    empresa_cod: '',
+                    email: '',
+                    nome_completo: '',
+                    senha: '',
+                    perfil: 'consultor',
+                    acesso_ia: false
+                  })
+                }}
+                className="px-4 py-3 bg-slate-700 text-white rounded-lg hover:bg-slate-600"
+              >
+                Cancelar
+              </button>
             </div>
           </div>
         </div>
+      )}
 
-        <div className="flex gap-2">
-          <button
-            onClick={() => onEdit(usuario)}
-            className="p-2 bg-blue-500/10 border border-blue-500/30 text-blue-400 rounded-lg hover:bg-blue-500/20 transition-all"
-            title="Editar"
-          >
-            <Edit2 className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => onChangePassword(usuario.id)}
-            className="p-2 bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 rounded-lg hover:bg-yellow-500/20 transition-all"
-            title="Alterar Senha"
-          >
-            <Lock className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => onDelete(usuario.id, usuario.nome_completo)}
-            className="p-2 bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg hover:bg-red-500/20 transition-all"
-            title="Excluir"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
+      {/* Modal: Nova Empresa */}
+      {showNewEmpresaForm && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[60] p-4">
+          <div className="bg-slate-800 border border-slate-700 rounded-xl p-6 max-w-md w-full">
+            <h3 className="text-xl font-bold text-white mb-4">Nova Empresa</h3>
+            <div className="space-y-4">
+              <input
+                type="text"
+                value={newEmpresa.cod}
+                onChange={(e) => setNewEmpresa({ ...newEmpresa, cod: e.target.value })}
+                placeholder="COD (ex: JM234)"
+                className="w-full px-4 py-3 bg-slate-900 border border-slate-600 rounded-lg text-white uppercase"
+              />
+              <input
+                type="text"
+                value={newEmpresa.razao_social}
+                onChange={(e) => setNewEmpresa({ ...newEmpresa, razao_social: e.target.value })}
+                placeholder="Razão Social"
+                className="w-full px-4 py-3 bg-slate-900 border border-slate-600 rounded-lg text-white"
+              />
+              <input
+                type="text"
+                value={newEmpresa.cnpj}
+                onChange={(e) => setNewEmpresa({ ...newEmpresa, cnpj: e.target.value })}
+                placeholder="CNPJ (opcional)"
+                className="w-full px-4 py-3 bg-slate-900 border border-slate-600 rounded-lg text-white"
+              />
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={handleCreateEmpresa}
+                disabled={loading}
+                className="flex-1 px-4 py-3 bg-cyan-500 text-white rounded-lg hover:bg-cyan-600 disabled:opacity-50"
+              >
+                Cadastrar
+              </button>
+              <button
+                onClick={() => {
+                  setShowNewEmpresaForm(false)
+                  setNewEmpresa({ cod: '', razao_social: '', cnpj: '' })
+                }}
+                className="px-4 py-3 bg-slate-700 text-white rounded-lg hover:bg-slate-600"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }
