@@ -1,235 +1,261 @@
-import { useState } from 'react'
-import { 
-  LayoutDashboard, MessageSquare, BarChart3, Settings, 
-  LogOut, Menu, X, Sparkles
-} from 'lucide-react'
-import Login from './components/Login'
+import { useState, useEffect, useRef } from 'react'
+import { MessageCircle, BarChart3, Shield, Menu, X, LogOut } from 'lucide-react'
+import Dashboard from './components/Dashboard'
+import Analytics from './components/Analytics'
 import AdminPanel from './components/AdminPanel'
+import Login from './components/Login'
 
-interface UserData {
-  id: number
-  nome: string
-  email: string
-  perfil: 'super_admin' | 'consultor'
-  acesso_ia: number
-  empresa: {
-    cod: string
-    nome: string
-  }
+const API_URL = 'https://comlink-api.josimarmarianocel.workers.dev'
+
+interface Message {
+  role: 'user' | 'assistant'
+  content: string
+  chartData?: { labels: string[], values: number[] }
+  type?: 'text' | 'chart'
 }
 
 function App() {
-  const [user, setUser] = useState<UserData | null>(null)
-  const [currentPage, setCurrentPage] = useState<'dashboard' | 'chat' | 'analytics'>('dashboard')
-  const [showAdmin, setShowAdmin] = useState(false)
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [userData, setUserData] = useState<any>(null)
+  const [currentPage, setCurrentPage] = useState<'dashboard' | 'analytics' | 'admin'>('dashboard')
+  const [messages, setMessages] = useState<Message[]>([])
+  const [input, setInput] = useState('')
+  const [loading, setLoading] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  const chatEndRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
 
-  const handleLogin = (userData: UserData) => {
-    setUser(userData)
+  // ✅ ADICIONADO: Verificar se é super_admin
+  const isSuperAdmin = userData?.perfil === 'super_admin'
+
+  // Verificar login ao carregar
+  useEffect(() => {
+    const savedUser = localStorage.getItem('user')
+    if (savedUser) {
+      try {
+        const user = JSON.parse(savedUser)
+        setUserData(user)
+        setIsLoggedIn(true)
+      } catch (error) {
+        localStorage.removeItem('user')
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages])
+
+  useEffect(() => {
+    if (currentPage === 'dashboard') {
+      inputRef.current?.focus()
+    }
+  }, [currentPage])
+
+  const handleLogin = (user: any) => {
+    setUserData(user)
+    setIsLoggedIn(true)
   }
 
   const handleLogout = () => {
-    localStorage.removeItem('comlink_user')
-    setUser(null)
+    localStorage.removeItem('user')
+    setUserData(null)
+    setIsLoggedIn(false)
+    setMessages([])
     setCurrentPage('dashboard')
   }
 
-  // ✅ CONTROLE: Só super_admin vê o botão admin
-  const isSuperAdmin = user?.perfil === 'super_admin'
+  const sendMessage = async () => {
+    if (!input.trim() || loading) return
 
-  if (!user) {
-    return <Login onLogin={handleLogin} onAdminClick={() => setShowAdmin(true)} />
+    const userMessage = input.trim()
+    setInput('')
+    setMessages(prev => [...prev, { role: 'user', content: userMessage, type: 'text' }])
+    setLoading(true)
+
+    try {
+      const response = await fetch(`${API_URL}/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: userMessage })
+      })
+
+      if (!response.ok) throw new Error('Erro na API')
+
+      const data = await response.json()
+      const assistantMessage = data.message || data.response || 'Sem resposta'
+      
+      // Se tiver gráfico, adicionar ao estado
+      if (data.type === 'chart' && data.chartData) {
+        setMessages(prev => [...prev, { 
+          role: 'assistant', 
+          content: assistantMessage,
+          chartData: data.chartData,
+          type: 'chart'
+        }])
+      } else {
+        setMessages(prev => [...prev, { 
+          role: 'assistant', 
+          content: assistantMessage,
+          type: 'text'
+        }])
+      }
+    } catch (error) {
+      console.error('Erro:', error)
+      setMessages(prev => [...prev, { 
+        role: 'assistant', 
+        content: 'Desculpe, ocorreu um erro ao processar sua mensagem. Tente novamente.',
+        type: 'text'
+      }])
+    } finally {
+      setLoading(false)
+      setTimeout(() => inputRef.current?.focus(), 100)
+    }
+  }
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      sendMessage()
+    }
+  }
+
+  if (!isLoggedIn) {
+    return <Login onLogin={handleLogin} />
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex">
+    <div className="flex h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 relative overflow-hidden">
+      {/* Background Effects */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-0 right-0 w-96 h-96 bg-cyan-500/5 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 left-0 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl" />
+      </div>
+
       {/* Sidebar */}
-      <aside className={`${sidebarOpen ? 'w-64' : 'w-20'} bg-slate-900/50 backdrop-blur-xl border-r border-slate-800 transition-all duration-300 flex flex-col`}>
-        {/* Logo */}
-        <div className="p-6 border-b border-slate-800">
-          <div className="flex items-center justify-between">
-            {sidebarOpen && (
-              <div>
-                <h1 className="text-xl font-bold text-white flex items-center gap-2">
-                  COMLINK <Sparkles className="w-5 h-5 text-cyan-400" />
-                </h1>
-                <p className="text-slate-400 text-xs mt-1">{user.empresa.nome}</p>
+      <div className={`${sidebarOpen ? 'w-72' : 'w-0'} transition-all duration-300 bg-slate-900/70 backdrop-blur-2xl border-r border-slate-800/50 overflow-hidden relative z-10`}>
+        <div className="p-6">
+          {/* Fornecedor Info */}
+          <div className="mb-8 p-5 bg-gradient-to-br from-slate-800/50 to-slate-800/30 backdrop-blur-xl rounded-2xl border border-slate-700/50">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-12 h-12 bg-gradient-to-br from-cyan-500 via-blue-500 to-purple-500 rounded-xl flex items-center justify-center shadow-lg">
+                <span className="text-white font-black text-lg">
+                  {userData?.fornecedor?.substring(0, 2) || 'JM'}
+                </span>
               </div>
-            )}
-            <button
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="text-slate-400 hover:text-white transition-colors"
-            >
-              {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-            </button>
+              <div>
+                <p className="text-xs text-slate-400 font-semibold">Fornecedor</p>
+                <p className="text-sm font-bold bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
+                  {userData?.fornecedor || 'JM TECNOLOGIA'}
+                </p>
+              </div>
+            </div>
+            <div className="pl-1">
+              <p className="text-xs text-slate-500 mb-1">{userData?.nome || 'Usuário'}</p>
+              <p className="text-xs text-slate-600">{userData?.cargo || 'Administrador'}</p>
+              <div className="flex items-center gap-2 mt-2">
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                <p className="text-xs text-slate-500">Online</p>
+              </div>
+            </div>
           </div>
-        </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 p-4 space-y-2">
-          <button
-            onClick={() => setCurrentPage('dashboard')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-              currentPage === 'dashboard'
-                ? 'bg-cyan-500 text-white'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800'
-            }`}
-          >
-            <LayoutDashboard className="w-5 h-5" />
-            {sidebarOpen && <span>Dashboard</span>}
-          </button>
-
-          {user.acesso_ia === 1 && (
+          {/* Navigation */}
+          <nav className="space-y-2 mb-8">
             <button
-              onClick={() => setCurrentPage('chat')}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-                currentPage === 'chat'
-                  ? 'bg-cyan-500 text-white'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-800'
+              onClick={() => setCurrentPage('dashboard')}
+              className={`w-full flex items-center gap-3 px-4 py-4 rounded-2xl transition-all group ${
+                currentPage === 'dashboard'
+                  ? 'bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-500 text-white shadow-lg shadow-cyan-500/30'
+                  : 'text-slate-300 hover:bg-slate-800/50'
               }`}
             >
-              <MessageSquare className="w-5 h-5" />
-              {sidebarOpen && <span>Chat IA</span>}
+              <MessageCircle className={`w-5 h-5 ${currentPage === 'dashboard' ? '' : 'group-hover:scale-110 transition-transform'}`} />
+              <span className="font-semibold">Chat IA</span>
             </button>
-          )}
 
-          <button
-            onClick={() => setCurrentPage('analytics')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-              currentPage === 'analytics'
-                ? 'bg-cyan-500 text-white'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800'
-            }`}
-          >
-            <BarChart3 className="w-5 h-5" />
-            {sidebarOpen && <span>Analytics</span>}
-          </button>
-
-          {/* ✅ BOTÃO ADMIN - Só para super_admin */}
-          {isSuperAdmin && (
             <button
-              onClick={() => setShowAdmin(true)}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-purple-400 hover:text-white hover:bg-purple-500/10 border border-purple-500/30 transition-all"
+              onClick={() => setCurrentPage('analytics')}
+              className={`w-full flex items-center gap-3 px-4 py-4 rounded-2xl transition-all group ${
+                currentPage === 'analytics'
+                  ? 'bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-500 text-white shadow-lg shadow-cyan-500/30'
+                  : 'text-slate-300 hover:bg-slate-800/50'
+              }`}
             >
-              <Settings className="w-5 h-5" />
-              {sidebarOpen && <span>Admin</span>}
+              <BarChart3 className={`w-5 h-5 ${currentPage === 'analytics' ? '' : 'group-hover:scale-110 transition-transform'}`} />
+              <span className="font-semibold">Analytics</span>
             </button>
-          )}
-        </nav>
 
-        {/* User Info */}
-        <div className="p-4 border-t border-slate-800">
-          {sidebarOpen && (
-            <div className="mb-3">
-              <p className="text-white font-medium text-sm">{user.nome}</p>
-              <p className="text-slate-400 text-xs">{user.email}</p>
-              <span className={`inline-block mt-2 px-2 py-1 rounded text-xs ${
-                user.perfil === 'super_admin' ? 'bg-purple-500/20 text-purple-300' :
-                'bg-blue-500/20 text-blue-300'
-              }`}>
-                {user.perfil === 'super_admin' ? 'Super Admin' : 'Consultor'}
-              </span>
-            </div>
-          )}
+            {/* ✅ MODIFICADO: Botão Admin só aparece para super_admin */}
+            {isSuperAdmin && (
+              <button
+                onClick={() => setCurrentPage('admin')}
+                className={`w-full flex items-center gap-3 px-4 py-4 rounded-2xl transition-all group ${
+                  currentPage === 'admin'
+                    ? 'bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-500 text-white shadow-lg shadow-cyan-500/30'
+                    : 'text-slate-300 hover:bg-slate-800/50'
+                }`}
+              >
+                <Shield className={`w-5 h-5 ${currentPage === 'admin' ? '' : 'group-hover:scale-110 transition-transform'}`} />
+                <span className="font-semibold">Painel Admin</span>
+              </button>
+            )}
+          </nav>
+
+          {/* Logout Button */}
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-400 hover:text-white hover:bg-red-500/10 transition-all"
+            className="w-full flex items-center gap-3 px-4 py-4 rounded-2xl text-red-400 hover:bg-red-500/10 transition-all border border-red-500/20 hover:border-red-500/40 group"
           >
-            <LogOut className="w-5 h-5" />
-            {sidebarOpen && <span>Sair</span>}
+            <LogOut className="w-5 h-5 group-hover:scale-110 transition-transform" />
+            <span className="font-semibold">Sair</span>
           </button>
         </div>
-      </aside>
+      </div>
 
       {/* Main Content */}
-      <main className="flex-1 p-8 overflow-y-auto">
-        {currentPage === 'dashboard' && (
-          <div>
-            <h2 className="text-3xl font-bold text-white mb-2">Dashboard</h2>
-            <p className="text-slate-400 mb-8">Bem-vindo de volta, {user.nome}!</p>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl p-6">
-                <h3 className="text-slate-400 text-sm font-medium mb-2">Cotações Ativas</h3>
-                <p className="text-3xl font-bold text-white">24</p>
-                <p className="text-green-400 text-sm mt-2">+12% vs mês anterior</p>
-              </div>
-              
-              <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl p-6">
-                <h3 className="text-slate-400 text-sm font-medium mb-2">Taxa de Resposta</h3>
-                <p className="text-3xl font-bold text-white">87%</p>
-                <p className="text-green-400 text-sm mt-2">+5% vs mês anterior</p>
-              </div>
-              
-              <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl p-6">
-                <h3 className="text-slate-400 text-sm font-medium mb-2">Tempo Médio</h3>
-                <p className="text-3xl font-bold text-white">2.4h</p>
-                <p className="text-cyan-400 text-sm mt-2">-15min vs mês anterior</p>
-              </div>
-            </div>
-
-            {user.acesso_ia === 0 && (
-              <div className="mt-8 p-6 bg-gradient-to-r from-cyan-500/10 to-blue-500/10 border border-cyan-500/20 rounded-2xl">
-                <div className="flex items-center gap-4">
-                  <Sparkles className="w-12 h-12 text-cyan-400" />
-                  <div>
-                    <h3 className="text-xl font-bold text-white mb-1">COMLINK IA</h3>
-                    <p className="text-slate-400">
-                      Você não tem acesso à IA. Entre em contato com o administrador para ativar.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {currentPage === 'chat' && user.acesso_ia === 1 && (
-          <div>
-            <h2 className="text-3xl font-bold text-white mb-2">Chat IA</h2>
-            <p className="text-slate-400 mb-8">Assistente inteligente para suas cotações</p>
-            
-            <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl p-6 h-[600px] flex flex-col">
-              <div className="flex-1 overflow-y-auto mb-4 space-y-4">
-                <div className="bg-slate-800 rounded-xl p-4 max-w-2xl">
-                  <p className="text-white">Olá! Como posso ajudar você hoje?</p>
-                </div>
-              </div>
-              <div className="flex gap-3">
-                <input
-                  type="text"
-                  placeholder="Digite sua mensagem..."
-                  className="flex-1 px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
-                />
-                <button className="px-6 py-3 bg-cyan-500 text-white rounded-xl hover:bg-cyan-600 transition-colors">
-                  Enviar
-                </button>
+      <div className="flex-1 flex flex-col relative z-10">
+        {/* Header */}
+        <header className="bg-slate-900/70 backdrop-blur-2xl border-b border-slate-800/50 px-6 py-4 shadow-lg">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                className="p-2 hover:bg-slate-800/50 rounded-xl transition-colors group"
+              >
+                {sidebarOpen ? 
+                  <X className="w-6 h-6 text-slate-300 group-hover:text-white group-hover:rotate-90 transition-all" /> : 
+                  <Menu className="w-6 h-6 text-slate-300 group-hover:text-white group-hover:scale-110 transition-all" />
+                }
+              </button>
+              <div>
+                <h1 className="text-xl font-black bg-gradient-to-r from-cyan-400 via-blue-400 to-purple-400 bg-clip-text text-transparent">
+                  Portal do Fornecedor
+                </h1>
+                <p className="text-xs text-slate-400">Gestão Inteligente de Cotações</p>
               </div>
             </div>
           </div>
-        )}
+        </header>
 
-        {currentPage === 'analytics' && (
-          <div>
-            <h2 className="text-3xl font-bold text-white mb-2">Analytics</h2>
-            <p className="text-slate-400 mb-8">Métricas e relatórios detalhados</p>
-            
-            <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl p-6">
-              <p className="text-slate-400 text-center py-12">
-                Gráficos e relatórios em breve...
-              </p>
-            </div>
-          </div>
-        )}
-      </main>
-
-      {/* Admin Panel Modal */}
-      {showAdmin && isSuperAdmin && (
-        <AdminPanel 
-          onClose={() => setShowAdmin(false)} 
-          userToken={localStorage.getItem('comlink_token') || undefined}
-        />
-      )}
+        <main className="flex-1 overflow-hidden">
+          {currentPage === 'dashboard' && (
+            <Dashboard
+              messages={messages}
+              input={input}
+              setInput={setInput}
+              loading={loading}
+              sendMessage={sendMessage}
+              handleKeyPress={handleKeyPress}
+              chatEndRef={chatEndRef}
+              inputRef={inputRef}
+            />
+          )}
+          {currentPage === 'analytics' && <Analytics />}
+          {/* ✅ MODIFICADO: Admin só renderiza se for super_admin */}
+          {currentPage === 'admin' && isSuperAdmin && <AdminPanel />}
+        </main>
+      </div>
     </div>
   )
 }
