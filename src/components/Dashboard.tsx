@@ -1,4 +1,4 @@
-import { Send, Puzzle, Zap, TrendingUp, Users, FileText, BarChart3 } from 'lucide-react'
+import { Send, Zap, TrendingUp, Users, FileText, BarChart3 } from 'lucide-react'
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts'
 
 interface Message {
@@ -57,12 +57,18 @@ export default function Dashboard({
         <div className="max-w-5xl mx-auto">
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center min-h-[calc(100vh-300px)] animate-fadeIn">
-              {/* Hero Section */}
+              {/* Hero Section com Robô */}
               <div className="text-center mb-16">
                 <div className="relative inline-block mb-8">
-                  <div className="absolute inset-0 bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-500 rounded-3xl blur-2xl opacity-50 animate-pulse" />
-                  <div className="relative w-28 h-28 bg-gradient-to-br from-cyan-500 via-blue-500 to-purple-500 rounded-3xl flex items-center justify-center shadow-2xl">
-                    <Puzzle className="w-14 h-14 text-white" />
+                  {/* Robô Animado */}
+                  <div className="relative w-64 h-64 animate-float">
+                    <img 
+                      src="/robot.png" 
+                      alt="CLK IA Robot" 
+                      className="w-full h-full object-contain drop-shadow-2xl"
+                    />
+                    {/* Efeito de Glow */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-500 rounded-full blur-3xl opacity-30 animate-pulse" />
                   </div>
                 </div>
                 
@@ -112,8 +118,13 @@ export default function Dashboard({
                 >
                   {msg.role === 'assistant' && (
                     <div className="flex-shrink-0">
-                      <div className="w-10 h-10 bg-gradient-to-br from-cyan-500 via-blue-500 to-purple-500 rounded-xl flex items-center justify-center shadow-lg shadow-cyan-500/30">
-                        <Puzzle className="w-5 h-5 text-white" />
+                      {/* Avatar do Robô nas mensagens */}
+                      <div className="w-12 h-12 rounded-xl overflow-hidden shadow-lg shadow-cyan-500/30 bg-gradient-to-br from-slate-800 to-slate-900 border border-cyan-500/30">
+                        <img 
+                          src="/robot.png" 
+                          alt="CLK IA" 
+                          className="w-full h-full object-cover scale-150 translate-y-2"
+                        />
                       </div>
                     </div>
                   )}
@@ -170,15 +181,15 @@ export default function Dashboard({
                     {msg.role === 'assistant' && (
                       <div className="flex items-center gap-2 mt-2 ml-2">
                         <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                        <p className="text-xs text-slate-500">Online • Agora</p>
+                        <p className="text-xs text-slate-500">CLK IA • Online</p>
                       </div>
                     )}
                   </div>
                   
                   {msg.role === 'user' && (
                     <div className="flex-shrink-0">
-                      <div className="w-10 h-10 bg-gradient-to-br from-slate-700 to-slate-800 rounded-xl flex items-center justify-center border border-slate-600 shadow-lg">
-                        <span className="text-xs font-bold text-slate-300">VC</span>
+                      <div className="w-12 h-12 bg-gradient-to-br from-slate-700 to-slate-800 rounded-xl flex items-center justify-center border border-slate-600 shadow-lg">
+                        <span className="text-xs font-bold text-slate-300">VOCÊ</span>
                       </div>
                     </div>
                   )}
@@ -188,8 +199,12 @@ export default function Dashboard({
               {loading && (
                 <div className="flex gap-4 justify-start animate-slideUp">
                   <div className="flex-shrink-0">
-                    <div className="w-10 h-10 bg-gradient-to-br from-cyan-500 via-blue-500 to-purple-500 rounded-xl flex items-center justify-center shadow-lg shadow-cyan-500/30">
-                      <Puzzle className="w-5 h-5 text-white animate-spin" />
+                    <div className="w-12 h-12 rounded-xl overflow-hidden shadow-lg shadow-cyan-500/30 bg-gradient-to-br from-slate-800 to-slate-900 border border-cyan-500/30 animate-pulse">
+                      <img 
+                        src="/robot.png" 
+                        alt="CLK IA" 
+                        className="w-full h-full object-cover scale-150 translate-y-2 animate-bounce-slow"
+                      />
                     </div>
                   </div>
                   <div className="bg-slate-800/70 backdrop-blur-xl border border-slate-700/50 rounded-2xl px-6 py-4">
@@ -261,15 +276,21 @@ export default function Dashboard({
           50% { background-position: 100% 50%; }
         }
         
-        @keyframes spin-slow {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
+        @keyframes float {
+          0%, 100% { transform: translateY(0px); }
+          50% { transform: translateY(-20px); }
+        }
+        
+        @keyframes bounce-slow {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-10px); }
         }
         
         .animate-fadeIn { animation: fadeIn 0.6s ease-out; }
         .animate-slideUp { animation: slideUp 0.4s ease-out backwards; }
         .animate-gradient { background-size: 200% 200%; animation: gradient 3s ease infinite; }
-        .animate-spin-slow { animation: spin-slow 3s linear infinite; }
+        .animate-float { animation: float 3s ease-in-out infinite; }
+        .animate-bounce-slow { animation: bounce-slow 2s ease-in-out infinite; }
       `}</style>
     </div>
   )
