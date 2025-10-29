@@ -1,476 +1,489 @@
 import { useState, useEffect } from 'react'
-import { X, Building2, Users, Shield, Plus, Save, Loader } from 'lucide-react'
+import { X, Users, Building2, Mail, Lock, Edit2, Trash2, Save, XCircle, Search, Filter } from 'lucide-react'
 
-export default function AdminPanel({ onClose }) {
-  const [authenticated, setAuthenticated] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [email, setEmail] = useState('')
-  const [senha, setSenha] = useState('')
-  const [error, setError] = useState('')
-  
-  // Estados das abas
-  const [activeTab, setActiveTab] = useState('usuarios')
-  const [empresas, setEmpresas] = useState([])
-  const [usuarios, setUsuarios] = useState([])
-  
-  // Estados dos formulários
-  const [showNovaEmpresa, setShowNovaEmpresa] = useState(false)
-  const [showNovoUsuario, setShowNovoUsuario] = useState(false)
-  const [novaEmpresa, setNovaEmpresa] = useState({ cod: '', razao_social: '', cnpj: '' })
-  const [novoUsuario, setNovoUsuario] = useState({
-    empresa_cod: '',
-    email: '',
-    nome_completo: '',
-    senha: '',
-    perfil: 'usuario',
-    acesso_ia: false
-  })
+interface Usuario {
+  id: number
+  nome: string
+  email: string
+  cod: string
+  fornecedor: string
+  cargo: string | null
+  perfil: string
+  acesso_ia: number
+  ativo: number
+  criado_em: string
+}
 
-  const handleAuthLogin = () => {
-    setError('')
-    setLoading(true)
+interface AdminPanelProps {
+  onClose: () => void
+}
 
-    // Verificar se é admin (cod 1 + email específico)
-    if (email === 'josimar.silva@comlinksa.com' && senha === '*Senha87*') {
-      setAuthenticated(true)
-      loadData()
-    } else {
-      setError('Acesso negado. Apenas super admin.')
-    }
-    
-    setLoading(false)
-  }
+export default function AdminPanel({ onClose }: AdminPanelProps) {
+  const [usuarios, setUsuarios] = useState<Usuario[]>([])
+  const [loading, setLoading] = useState(true)
+  const [editingId, setEditingId] = useState<number | null>(null)
+  const [editData, setEditData] = useState<Partial<Usuario>>({})
+  const [searchTerm, setSearchTerm] = useState('')
+  const [filterCod, setFilterCod] = useState<string>('all')
+  const [empresas, setEmpresas] = useState<string[]>([])
 
-  const loadData = async () => {
-    try {
-      // Carregar empresas
-      const respEmpresas = await fetch('https://comlink-api.josimarmarianocel.workers.dev/admin/empresas')
-      const dataEmpresas = await respEmpresas.json()
-      setEmpresas(dataEmpresas)
+  useEffect(() => {
+    carregarUsuarios()
+  }, [])
 
-      // Carregar usuários
-      const respUsuarios = await fetch('https://comlink-api.josimarmarianocel.workers.dev/admin/usuarios')
-      const dataUsuarios = await respUsuarios.json()
-      setUsuarios(dataUsuarios)
-    } catch (err) {
-      console.error('Erro ao carregar dados:', err)
-    }
-  }
-
-  const handleCadastrarEmpresa = async () => {
-    if (!novaEmpresa.cod || !novaEmpresa.razao_social) {
-      alert('Preencha COD e Razão Social')
-      return
-    }
-
+  const carregarUsuarios = async () => {
     setLoading(true)
     try {
-      const response = await fetch('https://comlink-api.josimarmarianocel.workers.dev/admin/empresas', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(novaEmpresa)
-      })
-
+      const response = await fetch('https://comlink-api.josimarmarianocel.workers.dev/admin/usuarios')
       const data = await response.json()
       
       if (data.sucesso) {
-        alert('Empresa cadastrada!')
-        setShowNovaEmpresa(false)
-        setNovaEmpresa({ cod: '', razao_social: '', cnpj: '' })
-        loadData()
-      } else {
-        alert(data.mensagem)
+        setUsuarios(data.usuarios)
+        // Extrair empresas únicas
+        const codsUnicos = [...new Set(data.usuarios.map((u: Usuario) => u.cod))]
+        setEmpresas(codsUnicos)
       }
-    } catch (err) {
-      alert('Erro ao cadastrar empresa')
+    } catch (error) {
+      console.error('Erro ao carregar usuários:', error)
+      alert('Erro ao carregar usuários')
     } finally {
       setLoading(false)
     }
   }
 
-  const handleCadastrarUsuario = async () => {
-    if (!novoUsuario.empresa_cod || !novoUsuario.email || !novoUsuario.nome_completo || !novoUsuario.senha) {
-      alert('Preencha todos os campos obrigatórios')
-      return
-    }
-
-    setLoading(true)
-    try {
-      const response = await fetch('https://comlink-api.josimarmarianocel.workers.dev/admin/usuarios', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(novoUsuario)
-      })
-
-      const data = await response.json()
-      
-      if (data.sucesso) {
-        alert('Usuário cadastrado!')
-        setShowNovoUsuario(false)
-        setNovoUsuario({
-          empresa_cod: '',
-          email: '',
-          nome_completo: '',
-          senha: '',
-          perfil: 'usuario',
-          acesso_ia: false
-        })
-        loadData()
-      } else {
-        alert(data.mensagem)
-      }
-    } catch (err) {
-      alert('Erro ao cadastrar usuário')
-    } finally {
-      setLoading(false)
-    }
+  const iniciarEdicao = (usuario: Usuario) => {
+    setEditingId(usuario.id)
+    setEditData({
+      nome: usuario.nome,
+      email: usuario.email,
+      perfil: usuario.perfil,
+      acesso_ia: usuario.acesso_ia,
+      ativo: usuario.ativo,
+      cargo: usuario.cargo || '',
+      fornecedor: usuario.fornecedor
+    })
   }
 
-  const handleToggleAcessoIA = async (usuarioId, acessoAtual) => {
-    setLoading(true)
+  const cancelarEdicao = () => {
+    setEditingId(null)
+    setEditData({})
+  }
+
+  const salvarEdicao = async (id: number) => {
     try {
-      await fetch('https://comlink-api.josimarmarianocel.workers.dev/admin/usuarios/acesso-ia', {
+      const response = await fetch(`https://comlink-api.josimarmarianocel.workers.dev/admin/usuarios/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          usuario_id: usuarioId,
-          acesso_ia: !acessoAtual
-        })
+        body: JSON.stringify(editData)
       })
-      loadData()
-    } catch (err) {
-      alert('Erro ao atualizar acesso')
-    } finally {
-      setLoading(false)
+
+      const data = await response.json()
+
+      if (data.sucesso) {
+        alert('✅ Usuário atualizado com sucesso!')
+        setEditingId(null)
+        setEditData({})
+        carregarUsuarios()
+      } else {
+        alert('❌ ' + (data.mensagem || 'Erro ao atualizar usuário'))
+      }
+    } catch (error) {
+      console.error('Erro ao salvar:', error)
+      alert('❌ Erro ao salvar usuário')
     }
   }
 
-  // Tela de autenticação
-  if (!authenticated) {
-    return (
-      <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 max-w-md w-full shadow-2xl">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-              <Shield className="w-6 h-6 text-cyan-400" />
-              Acesso Administrativo
-            </h2>
-            <button onClick={onClose} className="text-slate-400 hover:text-white">
+  const alterarSenha = async (id: number) => {
+    const novaSenha = prompt('Digite a nova senha (mínimo 6 caracteres):')
+    if (!novaSenha) return
+
+    if (novaSenha.length < 6) {
+      alert('❌ A senha deve ter pelo menos 6 caracteres')
+      return
+    }
+
+    try {
+      const response = await fetch(`https://comlink-api.josimarmarianocel.workers.dev/admin/usuarios/${id}/senha`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ senha: novaSenha })
+      })
+
+      const data = await response.json()
+
+      if (data.sucesso) {
+        alert('✅ Senha alterada com sucesso!')
+      } else {
+        alert('❌ ' + (data.mensagem || 'Erro ao alterar senha'))
+      }
+    } catch (error) {
+      console.error('Erro ao alterar senha:', error)
+      alert('❌ Erro ao alterar senha')
+    }
+  }
+
+  const excluirUsuario = async (id: number, nome: string) => {
+    if (!confirm(`❌ Tem certeza que deseja excluir o usuário "${nome}"?`)) return
+
+    try {
+      const response = await fetch(`https://comlink-api.josimarmarianocel.workers.dev/admin/usuarios/${id}`, {
+        method: 'DELETE'
+      })
+
+      const data = await response.json()
+
+      if (data.sucesso) {
+        alert('✅ Usuário excluído com sucesso!')
+        carregarUsuarios()
+      } else {
+        alert('❌ ' + (data.mensagem || 'Erro ao excluir usuário'))
+      }
+    } catch (error) {
+      console.error('Erro ao excluir:', error)
+      alert('❌ Erro ao excluir usuário')
+    }
+  }
+
+  // Filtrar usuários
+  const usuariosFiltrados = usuarios.filter(usuario => {
+    const matchSearch = 
+      usuario.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      usuario.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      usuario.fornecedor.toLowerCase().includes(searchTerm.toLowerCase())
+    
+    const matchEmpresa = filterCod === 'all' || usuario.cod === filterCod
+
+    return matchSearch && matchEmpresa
+  })
+
+  // Agrupar por empresa
+  const usuariosPorEmpresa = empresas.reduce((acc, cod) => {
+    acc[cod] = usuariosFiltrados.filter(u => u.cod === cod)
+    return acc
+  }, {} as Record<string, Usuario[]>)
+
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+        {/* Header */}
+        <div className="p-6 border-b border-slate-800 bg-gradient-to-r from-purple-500/10 to-blue-500/10">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-blue-600 rounded-xl flex items-center justify-center">
+                <Users className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-white">Painel Administrativo</h2>
+                <p className="text-slate-400 text-sm">Gerenciar usuários do sistema</p>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              className="p-2 hover:bg-slate-800 rounded-lg transition-colors text-slate-400 hover:text-white"
+            >
               <X className="w-6 h-6" />
             </button>
           </div>
+        </div>
 
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-semibold text-slate-300 mb-2">Email Admin</label>
+        {/* Filtros */}
+        <div className="p-6 border-b border-slate-800 space-y-4">
+          <div className="flex gap-4">
+            {/* Busca */}
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
               <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                placeholder="admin@comlinksa.com"
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Buscar por nome, email ou fornecedor..."
+                className="w-full pl-10 pr-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20"
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-semibold text-slate-300 mb-2">Senha</label>
-              <input
-                type="password"
-                value={senha}
-                onChange={(e) => setSenha(e.target.value)}
-                className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                placeholder="Digite a senha"
-              />
+            {/* Filtro por Empresa */}
+            <div className="relative">
+              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+              <select
+                value={filterCod}
+                onChange={(e) => setFilterCod(e.target.value)}
+                className="pl-10 pr-8 py-3 bg-slate-800/50 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 appearance-none cursor-pointer"
+              >
+                <option value="all">Todas as Empresas</option>
+                {empresas.map(cod => (
+                  <option key={cod} value={cod}>{cod.toUpperCase()}</option>
+                ))}
+              </select>
             </div>
-
-            {error && (
-              <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-3">
-                <p className="text-red-400 text-sm">{error}</p>
-              </div>
-            )}
-
-            <button
-              onClick={handleAuthLogin}
-              disabled={loading}
-              className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white font-bold py-3 rounded-xl transition-all disabled:opacity-50"
-            >
-              {loading ? 'Verificando...' : 'Entrar'}
-            </button>
           </div>
+
+          {/* Estatísticas */}
+          <div className="flex gap-4">
+            <div className="flex-1 p-4 bg-slate-800/30 rounded-xl border border-slate-700/50">
+              <p className="text-slate-400 text-sm">Total de Usuários</p>
+              <p className="text-2xl font-bold text-white">{usuariosFiltrados.length}</p>
+            </div>
+            <div className="flex-1 p-4 bg-slate-800/30 rounded-xl border border-slate-700/50">
+              <p className="text-slate-400 text-sm">Empresas</p>
+              <p className="text-2xl font-bold text-white">{empresas.length}</p>
+            </div>
+            <div className="flex-1 p-4 bg-slate-800/30 rounded-xl border border-slate-700/50">
+              <p className="text-slate-400 text-sm">Usuários Ativos</p>
+              <p className="text-2xl font-bold text-green-400">
+                {usuariosFiltrados.filter(u => u.ativo === 1).length}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Lista de Usuários */}
+        <div className="flex-1 overflow-y-auto p-6">
+          {loading ? (
+            <div className="text-center py-12">
+              <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-slate-700 border-t-cyan-500"></div>
+              <p className="text-slate-400 mt-4">Carregando usuários...</p>
+            </div>
+          ) : filterCod === 'all' ? (
+            /* Agrupado por Empresa */
+            <div className="space-y-6">
+              {empresas.map(cod => {
+                const usuariosEmpresa = usuariosPorEmpresa[cod]
+                if (usuariosEmpresa.length === 0) return null
+
+                return (
+                  <div key={cod} className="space-y-3">
+                    <div className="flex items-center gap-2 px-4 py-2 bg-slate-800/30 rounded-lg border border-slate-700/50">
+                      <Building2 className="w-5 h-5 text-cyan-400" />
+                      <h3 className="text-lg font-bold text-white">{cod.toUpperCase()}</h3>
+                      <span className="ml-auto text-slate-400 text-sm">
+                        {usuariosEmpresa.length} usuário{usuariosEmpresa.length !== 1 ? 's' : ''}
+                      </span>
+                    </div>
+
+                    <div className="space-y-2">
+                      {usuariosEmpresa.map(usuario => (
+                        <UsuarioCard
+                          key={usuario.id}
+                          usuario={usuario}
+                          isEditing={editingId === usuario.id}
+                          editData={editData}
+                          setEditData={setEditData}
+                          onEdit={iniciarEdicao}
+                          onSave={salvarEdicao}
+                          onCancel={cancelarEdicao}
+                          onChangePassword={alterarSenha}
+                          onDelete={excluirUsuario}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          ) : (
+            /* Lista Simples (quando filtrado) */
+            <div className="space-y-2">
+              {usuariosFiltrados.map(usuario => (
+                <UsuarioCard
+                  key={usuario.id}
+                  usuario={usuario}
+                  isEditing={editingId === usuario.id}
+                  editData={editData}
+                  setEditData={setEditData}
+                  onEdit={iniciarEdicao}
+                  onSave={salvarEdicao}
+                  onCancel={cancelarEdicao}
+                  onChangePassword={alterarSenha}
+                  onDelete={excluirUsuario}
+                />
+              ))}
+            </div>
+          )}
+
+          {usuariosFiltrados.length === 0 && !loading && (
+            <div className="text-center py-12">
+              <Users className="w-16 h-16 text-slate-700 mx-auto mb-4" />
+              <p className="text-slate-400">Nenhum usuário encontrado</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Componente de Card do Usuário
+interface UsuarioCardProps {
+  usuario: Usuario
+  isEditing: boolean
+  editData: Partial<Usuario>
+  setEditData: (data: Partial<Usuario>) => void
+  onEdit: (usuario: Usuario) => void
+  onSave: (id: number) => void
+  onCancel: () => void
+  onChangePassword: (id: number) => void
+  onDelete: (id: number, nome: string) => void
+}
+
+function UsuarioCard({
+  usuario,
+  isEditing,
+  editData,
+  setEditData,
+  onEdit,
+  onSave,
+  onCancel,
+  onChangePassword,
+  onDelete
+}: UsuarioCardProps) {
+  if (isEditing) {
+    return (
+      <div className="p-4 bg-slate-800/50 border-2 border-cyan-500 rounded-xl space-y-3">
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs text-slate-400 mb-1">Nome</label>
+            <input
+              type="text"
+              value={editData.nome || ''}
+              onChange={(e) => setEditData({ ...editData, nome: e.target.value })}
+              className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white text-sm focus:border-cyan-500 focus:outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-slate-400 mb-1">Email</label>
+            <input
+              type="email"
+              value={editData.email || ''}
+              onChange={(e) => setEditData({ ...editData, email: e.target.value })}
+              className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white text-sm focus:border-cyan-500 focus:outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-slate-400 mb-1">Fornecedor</label>
+            <input
+              type="text"
+              value={editData.fornecedor || ''}
+              onChange={(e) => setEditData({ ...editData, fornecedor: e.target.value })}
+              className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white text-sm focus:border-cyan-500 focus:outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-slate-400 mb-1">Cargo</label>
+            <input
+              type="text"
+              value={editData.cargo || ''}
+              onChange={(e) => setEditData({ ...editData, cargo: e.target.value })}
+              className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white text-sm focus:border-cyan-500 focus:outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-slate-400 mb-1">Perfil</label>
+            <select
+              value={editData.perfil || 'usuario'}
+              onChange={(e) => setEditData({ ...editData, perfil: e.target.value })}
+              className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white text-sm focus:border-cyan-500 focus:outline-none"
+            >
+              <option value="usuario">Usuário</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs text-slate-400 mb-1">Status</label>
+            <select
+              value={editData.ativo || 1}
+              onChange={(e) => setEditData({ ...editData, ativo: Number(e.target.value) })}
+              className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white text-sm focus:border-cyan-500 focus:outline-none"
+            >
+              <option value={1}>Ativo</option>
+              <option value={0}>Inativo</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="flex gap-2">
+          <button
+            onClick={() => onSave(usuario.id)}
+            className="flex-1 px-4 py-2 bg-green-500/20 border border-green-500/30 text-green-400 rounded-lg hover:bg-green-500/30 transition-all flex items-center justify-center gap-2"
+          >
+            <Save className="w-4 h-4" />
+            Salvar
+          </button>
+          <button
+            onClick={onCancel}
+            className="flex-1 px-4 py-2 bg-slate-700/50 border border-slate-600 text-slate-300 rounded-lg hover:bg-slate-700 transition-all flex items-center justify-center gap-2"
+          >
+            <XCircle className="w-4 h-4" />
+            Cancelar
+          </button>
         </div>
       </div>
     )
   }
 
-  // Painel admin autenticado
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-6xl shadow-2xl my-8">
-        {/* Header */}
-        <div className="flex justify-between items-center p-6 border-b border-slate-800">
-          <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-            <Shield className="w-6 h-6 text-cyan-400" />
-            Painel Administrativo
-          </h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-white">
-            <X className="w-6 h-6" />
-          </button>
+    <div className="p-4 bg-slate-800/30 border border-slate-700/50 rounded-xl hover:bg-slate-800/50 transition-all">
+      <div className="flex items-start justify-between">
+        <div className="flex-1">
+          <div className="flex items-center gap-3 mb-2">
+            <h3 className="text-lg font-semibold text-white">{usuario.nome}</h3>
+            <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+              usuario.ativo === 1 
+                ? 'bg-green-500/20 text-green-400' 
+                : 'bg-red-500/20 text-red-400'
+            }`}>
+              {usuario.ativo === 1 ? 'Ativo' : 'Inativo'}
+            </span>
+            <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+              usuario.perfil === 'admin'
+                ? 'bg-purple-500/20 text-purple-400'
+                : 'bg-blue-500/20 text-blue-400'
+            }`}>
+              {usuario.perfil}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm">
+            <div className="flex items-center gap-2 text-slate-400">
+              <Mail className="w-4 h-4" />
+              {usuario.email}
+            </div>
+            <div className="flex items-center gap-2 text-slate-400">
+              <Building2 className="w-4 h-4" />
+              {usuario.fornecedor}
+            </div>
+            {usuario.cargo && (
+              <div className="text-slate-400">
+                Cargo: {usuario.cargo}
+              </div>
+            )}
+            <div className="text-slate-400">
+              COD: <span className="text-cyan-400 font-mono">{usuario.cod}</span>
+            </div>
+          </div>
         </div>
 
-        {/* Tabs */}
-        <div className="flex border-b border-slate-800 px-6">
+        <div className="flex gap-2">
           <button
-            onClick={() => setActiveTab('usuarios')}
-            className={`px-6 py-3 font-semibold transition-colors ${
-              activeTab === 'usuarios'
-                ? 'text-cyan-400 border-b-2 border-cyan-400'
-                : 'text-slate-400 hover:text-white'
-            }`}
+            onClick={() => onEdit(usuario)}
+            className="p-2 bg-blue-500/10 border border-blue-500/30 text-blue-400 rounded-lg hover:bg-blue-500/20 transition-all"
+            title="Editar"
           >
-            <Users className="w-4 h-4 inline mr-2" />
-            Usuários
+            <Edit2 className="w-4 h-4" />
           </button>
           <button
-            onClick={() => setActiveTab('empresas')}
-            className={`px-6 py-3 font-semibold transition-colors ${
-              activeTab === 'empresas'
-                ? 'text-cyan-400 border-b-2 border-cyan-400'
-                : 'text-slate-400 hover:text-white'
-            }`}
+            onClick={() => onChangePassword(usuario.id)}
+            className="p-2 bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 rounded-lg hover:bg-yellow-500/20 transition-all"
+            title="Alterar Senha"
           >
-            <Building2 className="w-4 h-4 inline mr-2" />
-            Empresas
+            <Lock className="w-4 h-4" />
           </button>
-        </div>
-
-        {/* Content */}
-        <div className="p-6 max-h-[70vh] overflow-y-auto">
-          {/* Tab Usuários */}
-          {activeTab === 'usuarios' && (
-            <div className="space-y-4">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-bold text-white">Gerenciar Usuários</h3>
-                <button
-                  onClick={() => setShowNovoUsuario(true)}
-                  className="bg-cyan-500 hover:bg-cyan-600 text-white px-4 py-2 rounded-xl font-semibold flex items-center gap-2"
-                >
-                  <Plus className="w-4 h-4" />
-                  Novo Usuário
-                </button>
-              </div>
-
-              {/* Formulário Novo Usuário */}
-              {showNovoUsuario && (
-                <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6 mb-4">
-                  <h4 className="text-lg font-bold text-white mb-4">Cadastrar Novo Usuário</h4>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm text-slate-300 mb-2">COD Empresa</label>
-                      <select
-                        value={novoUsuario.empresa_cod}
-                        onChange={(e) => setNovoUsuario({...novoUsuario, empresa_cod: e.target.value})}
-                        className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-white"
-                      >
-                        <option value="">Selecione...</option>
-                        {empresas.map(emp => (
-                          <option key={emp.cod} value={emp.cod}>{emp.cod} - {emp.razao_social}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm text-slate-300 mb-2">Nome Completo</label>
-                      <input
-                        type="text"
-                        value={novoUsuario.nome_completo}
-                        onChange={(e) => setNovoUsuario({...novoUsuario, nome_completo: e.target.value})}
-                        className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-white"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm text-slate-300 mb-2">Email</label>
-                      <input
-                        type="email"
-                        value={novoUsuario.email}
-                        onChange={(e) => setNovoUsuario({...novoUsuario, email: e.target.value})}
-                        className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-white"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm text-slate-300 mb-2">Senha</label>
-                      <input
-                        type="password"
-                        value={novoUsuario.senha}
-                        onChange={(e) => setNovoUsuario({...novoUsuario, senha: e.target.value})}
-                        className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-white"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm text-slate-300 mb-2">Perfil</label>
-                      <select
-                        value={novoUsuario.perfil}
-                        onChange={(e) => setNovoUsuario({...novoUsuario, perfil: e.target.value})}
-                        className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-white"
-                      >
-                        <option value="usuario">Usuário</option>
-                        <option value="admin">Admin</option>
-                      </select>
-                    </div>
-                    <div className="flex items-center">
-                      <label className="flex items-center gap-2 text-white cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={novoUsuario.acesso_ia}
-                          onChange={(e) => setNovoUsuario({...novoUsuario, acesso_ia: e.target.checked})}
-                          className="w-5 h-5"
-                        />
-                        <span className="text-sm">Acesso à IA</span>
-                      </label>
-                    </div>
-                  </div>
-                  <div className="flex gap-2 mt-4">
-                    <button
-                      onClick={handleCadastrarUsuario}
-                      disabled={loading}
-                      className="bg-cyan-500 hover:bg-cyan-600 text-white px-4 py-2 rounded-xl font-semibold flex items-center gap-2"
-                    >
-                      <Save className="w-4 h-4" />
-                      {loading ? 'Salvando...' : 'Salvar'}
-                    </button>
-                    <button
-                      onClick={() => setShowNovoUsuario(false)}
-                      className="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-xl"
-                    >
-                      Cancelar
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Lista de Usuários */}
-              <div className="space-y-2">
-                {usuarios.map(usuario => (
-                  <div key={usuario.id} className="bg-slate-800 border border-slate-700 rounded-xl p-4 flex justify-between items-center">
-                    <div>
-                      <p className="text-white font-semibold">{usuario.nome_completo}</p>
-                      <p className="text-slate-400 text-sm">{usuario.email}</p>
-                      <p className="text-slate-500 text-xs">
-                        {usuario.empresa_cod} - {usuario.empresa_nome} | Perfil: {usuario.perfil}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={usuario.acesso_ia === 1}
-                          onChange={() => handleToggleAcessoIA(usuario.id, usuario.acesso_ia === 1)}
-                          disabled={loading}
-                          className="w-5 h-5"
-                        />
-                        <span className="text-sm text-slate-300">Acesso IA</span>
-                      </label>
-                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                        usuario.ativo ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
-                      }`}>
-                        {usuario.ativo ? 'Ativo' : 'Inativo'}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Tab Empresas */}
-          {activeTab === 'empresas' && (
-            <div className="space-y-4">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-bold text-white">Gerenciar Empresas</h3>
-                <button
-                  onClick={() => setShowNovaEmpresa(true)}
-                  className="bg-cyan-500 hover:bg-cyan-600 text-white px-4 py-2 rounded-xl font-semibold flex items-center gap-2"
-                >
-                  <Plus className="w-4 h-4" />
-                  Nova Empresa
-                </button>
-              </div>
-
-              {/* Formulário Nova Empresa */}
-              {showNovaEmpresa && (
-                <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6 mb-4">
-                  <h4 className="text-lg font-bold text-white mb-4">Cadastrar Nova Empresa</h4>
-                  <div className="grid grid-cols-3 gap-4">
-                    <div>
-                      <label className="block text-sm text-slate-300 mb-2">COD</label>
-                      <input
-                        type="text"
-                        value={novaEmpresa.cod}
-                        onChange={(e) => setNovaEmpresa({...novaEmpresa, cod: e.target.value})}
-                        className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-white uppercase"
-                        placeholder="EX: ABC123"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm text-slate-300 mb-2">Razão Social</label>
-                      <input
-                        type="text"
-                        value={novaEmpresa.razao_social}
-                        onChange={(e) => setNovaEmpresa({...novaEmpresa, razao_social: e.target.value})}
-                        className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-white"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm text-slate-300 mb-2">CNPJ (opcional)</label>
-                      <input
-                        type="text"
-                        value={novaEmpresa.cnpj}
-                        onChange={(e) => setNovaEmpresa({...novaEmpresa, cnpj: e.target.value})}
-                        className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-white"
-                      />
-                    </div>
-                  </div>
-                  <div className="flex gap-2 mt-4">
-                    <button
-                      onClick={handleCadastrarEmpresa}
-                      disabled={loading}
-                      className="bg-cyan-500 hover:bg-cyan-600 text-white px-4 py-2 rounded-xl font-semibold flex items-center gap-2"
-                    >
-                      <Save className="w-4 h-4" />
-                      {loading ? 'Salvando...' : 'Salvar'}
-                    </button>
-                    <button
-                      onClick={() => setShowNovaEmpresa(false)}
-                      className="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-xl"
-                    >
-                      Cancelar
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Lista de Empresas */}
-              <div className="space-y-2">
-                {empresas.map(empresa => (
-                  <div key={empresa.id} className="bg-slate-800 border border-slate-700 rounded-xl p-4 flex justify-between items-center">
-                    <div>
-                      <p className="text-white font-semibold">{empresa.razao_social}</p>
-                      <p className="text-slate-400 text-sm">COD: {empresa.cod}</p>
-                      {empresa.cnpj && <p className="text-slate-500 text-xs">CNPJ: {empresa.cnpj}</p>}
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <span className="text-sm text-slate-400">
-                        {empresa.total_usuarios} usuário(s)
-                      </span>
-                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                        empresa.ativa ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
-                      }`}>
-                        {empresa.ativa ? 'Ativa' : 'Inativa'}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          <button
+            onClick={() => onDelete(usuario.id, usuario.nome)}
+            className="p-2 bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg hover:bg-red-500/20 transition-all"
+            title="Excluir"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
         </div>
       </div>
     </div>
