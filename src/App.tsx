@@ -1,3 +1,4 @@
+import AdminPanel from './components/AdminPanel'
 import { useState, useEffect, useRef } from 'react'
 import { MessageCircle, BarChart3, Shield, Menu, X, LogOut } from 'lucide-react'
 import Dashboard from './components/Dashboard'
