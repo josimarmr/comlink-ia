@@ -1,10 +1,9 @@
-import AdminPanel from './components/AdminPanel'
 import { useState, useEffect, useRef } from 'react'
-import { MessageCircle, BarChart3, Shield, Menu, X, LogOut } from 'lucide-react'
+import { MessageCircle, BarChart3, Shield, Menu, X } from 'lucide-react'
 import Dashboard from './components/Dashboard'
 import Analytics from './components/Analytics'
-import AdminPanel from './components/AdminPanel'
 import Login from './components/Login'
+import AdminPanel from './components/AdminPanel'
 
 const API_URL = 'https://comlink-api.josimarmarianocel.workers.dev'
 
@@ -18,49 +17,44 @@ interface Message {
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [userData, setUserData] = useState<any>(null)
-  const [currentPage, setCurrentPage] = useState<'dashboard' | 'analytics' | 'admin'>('dashboard')
+  const [currentPage, setCurrentPage] = useState<'dashboard' | 'analytics'>('dashboard')
+  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [showAdmin, setShowAdmin] = useState(false)
+  
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
-  const [sidebarOpen, setSidebarOpen] = useState(true)
+  
   const chatEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
   // Verificar login ao carregar
   useEffect(() => {
-    const savedUser = localStorage.getItem('user')
-    if (savedUser) {
-      try {
-        const user = JSON.parse(savedUser)
-        setUserData(user)
-        setIsLoggedIn(true)
-      } catch (error) {
-        localStorage.removeItem('user')
-      }
+    const token = localStorage.getItem('comlink_token')
+    const user = localStorage.getItem('comlink_usuario')
+    
+    if (token && user) {
+      setIsLoggedIn(true)
+      setUserData(JSON.parse(user))
     }
   }, [])
 
+  // Scroll automático no chat
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  useEffect(() => {
-    if (currentPage === 'dashboard') {
-      inputRef.current?.focus()
-    }
-  }, [currentPage])
-
-  const handleLogin = (user: any) => {
-    setUserData(user)
+  const handleLogin = (usuario: any) => {
     setIsLoggedIn(true)
+    setUserData(usuario)
   }
 
   const handleLogout = () => {
-    localStorage.removeItem('user')
-    setUserData(null)
+    localStorage.removeItem('comlink_token')
+    localStorage.removeItem('comlink_usuario')
     setIsLoggedIn(false)
+    setUserData(null)
     setMessages([])
-    setCurrentPage('dashboard')
   }
 
   const sendMessage = async () => {
@@ -68,7 +62,7 @@ function App() {
 
     const userMessage = input.trim()
     setInput('')
-    setMessages(prev => [...prev, { role: 'user', content: userMessage, type: 'text' }])
+    setMessages(prev => [...prev, { role: 'user', content: userMessage }])
     setLoading(true)
 
     try {
@@ -81,33 +75,21 @@ function App() {
       if (!response.ok) throw new Error('Erro na API')
 
       const data = await response.json()
-      const assistantMessage = data.message || data.response || 'Sem resposta'
-      
-      // Se tiver gráfico, adicionar ao estado
-      if (data.type === 'chart' && data.chartData) {
-        setMessages(prev => [...prev, { 
-          role: 'assistant', 
-          content: assistantMessage,
-          chartData: data.chartData,
-          type: 'chart'
-        }])
-      } else {
-        setMessages(prev => [...prev, { 
-          role: 'assistant', 
-          content: assistantMessage,
-          type: 'text'
-        }])
-      }
+
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: data.message,
+        chartData: data.chartData,
+        type: data.type || 'text'
+      }])
     } catch (error) {
       console.error('Erro:', error)
-      setMessages(prev => [...prev, { 
-        role: 'assistant', 
-        content: 'Desculpe, ocorreu um erro ao processar sua mensagem. Tente novamente.',
-        type: 'text'
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: 'Desculpe, ocorreu um erro ao processar sua mensagem.'
       }])
     } finally {
       setLoading(false)
-      setTimeout(() => inputRef.current?.focus(), 100)
     }
   }
 
@@ -118,138 +100,146 @@ function App() {
     }
   }
 
+  // Se não estiver logado, mostra tela de login
   if (!isLoggedIn) {
-    return <Login onLogin={handleLogin} />
+    return (
+      <Login 
+        onLogin={handleLogin}
+        onAdminClick={() => setShowAdmin(true)}
+      />
+    )
   }
 
   return (
-    <div className="flex h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 relative overflow-hidden">
-      {/* Background Effects */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-cyan-500/5 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 left-0 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl" />
-      </div>
-
+    <div className="flex h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
       {/* Sidebar */}
-      <div className={`${sidebarOpen ? 'w-72' : 'w-0'} transition-all duration-300 bg-slate-900/70 backdrop-blur-2xl border-r border-slate-800/50 overflow-hidden relative z-10`}>
-        <div className="p-6">
-          {/* Fornecedor Info */}
-          <div className="mb-8 p-5 bg-gradient-to-br from-slate-800/50 to-slate-800/30 backdrop-blur-xl rounded-2xl border border-slate-700/50">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-12 h-12 bg-gradient-to-br from-cyan-500 via-blue-500 to-purple-500 rounded-xl flex items-center justify-center shadow-lg">
-                <span className="text-white font-black text-lg">
-                  {userData?.fornecedor?.substring(0, 2) || 'JM'}
+      <div className={`${sidebarOpen ? 'w-64' : 'w-20'} bg-slate-900/50 backdrop-blur-xl border-r border-slate-800 transition-all duration-300 flex flex-col`}>
+        {/* Header Sidebar */}
+        <div className="p-4 border-b border-slate-800 flex items-center justify-between">
+          {sidebarOpen ? (
+            <>
+              <div>
+                <h1 className="text-xl font-bold bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
+                  COMLINK
+                </h1>
+                <p className="text-xs text-slate-400">{userData?.empresa?.nome}</p>
+              </div>
+              <button
+                onClick={() => setSidebarOpen(false)}
+                className="text-slate-400 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="text-slate-400 hover:text-white mx-auto"
+            >
+              <Menu className="w-6 h-6" />
+            </button>
+          )}
+        </div>
+
+        {/* Menu */}
+        <nav className="flex-1 p-4">
+          <button
+            onClick={() => setCurrentPage('dashboard')}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+              currentPage === 'dashboard'
+                ? 'bg-gradient-to-r from-cyan-500/20 to-blue-500/20 text-cyan-400 border border-cyan-500/30'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
+            }`}
+          >
+            <MessageCircle className="w-5 h-5" />
+            {sidebarOpen && <span className="font-medium">Dashboard</span>}
+          </button>
+
+          <button
+            onClick={() => setCurrentPage('analytics')}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all mt-2 ${
+              currentPage === 'analytics'
+                ? 'bg-gradient-to-r from-cyan-500/20 to-blue-500/20 text-cyan-400 border border-cyan-500/30'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
+            }`}
+          >
+            <BarChart3 className="w-5 h-5" />
+            {sidebarOpen && <span className="font-medium">Analytics</span>}
+          </button>
+
+          {/* Botão Admin (só para super_admin) */}
+          {userData?.perfil === 'super_admin' && (
+            <button
+              onClick={() => setShowAdmin(true)}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all mt-2 text-purple-400 hover:text-purple-300 hover:bg-purple-500/10 border border-purple-500/20"
+            >
+              <Shield className="w-5 h-5" />
+              {sidebarOpen && <span className="font-medium">Admin</span>}
+            </button>
+          )}
+        </nav>
+
+        {/* User Info */}
+        <div className="p-4 border-t border-slate-800">
+          {sidebarOpen ? (
+            <div>
+              <p className="text-sm font-semibold text-white">{userData?.nome}</p>
+              <p className="text-xs text-slate-400">{userData?.email}</p>
+              <div className="flex items-center gap-2 mt-2">
+                <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                  userData?.acesso_ia 
+                    ? 'bg-green-500/20 text-green-400' 
+                    : 'bg-slate-500/20 text-slate-400'
+                }`}>
+                  {userData?.acesso_ia ? 'IA Ativa' : 'Sem IA'}
+                </span>
+                <span className="px-2 py-1 rounded-full text-xs font-semibold bg-blue-500/20 text-blue-400">
+                  {userData?.perfil}
                 </span>
               </div>
-              <div>
-                <p className="text-xs text-slate-400 font-semibold">Fornecedor</p>
-                <p className="text-sm font-bold bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
-                  {userData?.fornecedor || 'JM TECNOLOGIA'}
-                </p>
-              </div>
+              <button
+                onClick={handleLogout}
+                className="w-full mt-3 px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-xl text-sm font-medium transition-all"
+              >
+                Sair
+              </button>
             </div>
-            <div className="pl-1">
-              <p className="text-xs text-slate-500 mb-1">{userData?.nome || 'Usuário'}</p>
-              <p className="text-xs text-slate-600">{userData?.cargo || 'Administrador'}</p>
-              <div className="flex items-center gap-2 mt-2">
-                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                <p className="text-xs text-slate-500">Online</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Navigation */}
-          <nav className="space-y-2 mb-8">
+          ) : (
             <button
-              onClick={() => setCurrentPage('dashboard')}
-              className={`w-full flex items-center gap-3 px-4 py-4 rounded-2xl transition-all group ${
-                currentPage === 'dashboard'
-                  ? 'bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-500 text-white shadow-lg shadow-cyan-500/30'
-                  : 'text-slate-300 hover:bg-slate-800/50'
-              }`}
+              onClick={handleLogout}
+              className="w-full p-2 text-red-400 hover:bg-red-500/10 rounded-xl transition-all"
+              title="Sair"
             >
-              <MessageCircle className={`w-5 h-5 ${currentPage === 'dashboard' ? '' : 'group-hover:scale-110 transition-transform'}`} />
-              <span className="font-semibold">Chat IA</span>
+              <span className="text-xl">🚪</span>
             </button>
-
-            <button
-              onClick={() => setCurrentPage('analytics')}
-              className={`w-full flex items-center gap-3 px-4 py-4 rounded-2xl transition-all group ${
-                currentPage === 'analytics'
-                  ? 'bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-500 text-white shadow-lg shadow-cyan-500/30'
-                  : 'text-slate-300 hover:bg-slate-800/50'
-              }`}
-            >
-              <BarChart3 className={`w-5 h-5 ${currentPage === 'analytics' ? '' : 'group-hover:scale-110 transition-transform'}`} />
-              <span className="font-semibold">Analytics</span>
-            </button>
-
-            <button
-              onClick={() => setCurrentPage('admin')}
-              className={`w-full flex items-center gap-3 px-4 py-4 rounded-2xl transition-all group ${
-                currentPage === 'admin'
-                  ? 'bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-500 text-white shadow-lg shadow-cyan-500/30'
-                  : 'text-slate-300 hover:bg-slate-800/50'
-              }`}
-            >
-              <Shield className={`w-5 h-5 ${currentPage === 'admin' ? '' : 'group-hover:scale-110 transition-transform'}`} />
-              <span className="font-semibold">Painel Admin</span>
-            </button>
-          </nav>
-
-          {/* Logout Button */}
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-4 py-4 rounded-2xl text-red-400 hover:bg-red-500/10 transition-all border border-red-500/20 hover:border-red-500/40 group"
-          >
-            <LogOut className="w-5 h-5 group-hover:scale-110 transition-transform" />
-            <span className="font-semibold">Sair</span>
-          </button>
+          )}
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col relative z-10">
-        {/* Header */}
-        <header className="bg-slate-900/70 backdrop-blur-2xl border-b border-slate-800/50 px-6 py-4 shadow-lg">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => setSidebarOpen(!sidebarOpen)}
-                className="p-2 hover:bg-slate-800/50 rounded-xl transition-colors group"
-              >
-                {sidebarOpen ? 
-                  <X className="w-6 h-6 text-slate-300 group-hover:text-white group-hover:rotate-90 transition-all" /> : 
-                  <Menu className="w-6 h-6 text-slate-300 group-hover:text-white group-hover:scale-110 transition-all" />
-                }
-              </button>
-              <div>
-                <h1 className="text-xl font-black bg-gradient-to-r from-cyan-400 via-blue-400 to-purple-400 bg-clip-text text-transparent">
-                  Portal do Fornecedor
-                </h1>
-                <p className="text-xs text-slate-400">Gestão Inteligente de Cotações</p>
-              </div>
-            </div>
-          </div>
-        </header>
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {currentPage === 'dashboard' && (
+          <Dashboard
+            messages={messages}
+            input={input}
+            setInput={setInput}
+            loading={loading}
+            sendMessage={sendMessage}
+            handleKeyPress={handleKeyPress}
+            chatEndRef={chatEndRef}
+            inputRef={inputRef}
+          />
+        )}
 
-        <main className="flex-1 overflow-hidden">
-          {currentPage === 'dashboard' && (
-            <Dashboard
-              messages={messages}
-              input={input}
-              setInput={setInput}
-              loading={loading}
-              sendMessage={sendMessage}
-              handleKeyPress={handleKeyPress}
-              chatEndRef={chatEndRef}
-              inputRef={inputRef}
-            />
-          )}
-          {currentPage === 'analytics' && <Analytics />}
-          {currentPage === 'admin' && <AdminPanel />}
-        </main>
+        {currentPage === 'analytics' && (
+          <Analytics />
+        )}
       </div>
+
+      {/* Admin Panel Modal */}
+      {showAdmin && (
+        <AdminPanel onClose={() => setShowAdmin(false)} />
+      )}
     </div>
   )
 }
