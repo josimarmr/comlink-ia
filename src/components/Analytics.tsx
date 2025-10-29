@@ -14,7 +14,7 @@ export default function Analytics({ empresaCod }) {
     total_quotations: 0,
     quotations_with_response: 0,
     quotations_refused: 0,
-    total_suppliers: 0,
+    clientes_atendidos: 0,
     taxa_conversao: 0,
     ticket_medio: 0,
     valor_total_faturado: 0
@@ -132,18 +132,18 @@ export default function Analytics({ empresaCod }) {
           <p className="text-sm text-gray-400">Cotações pendentes</p>
         </div>
 
-        {/* Fornecedores Ativos */}
+        {/* Clientes Atendidos */}
         <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50 hover:border-purple-500/50 transition-all">
           <div className="flex justify-between items-start mb-4">
             <div className="p-3 bg-purple-500/10 rounded-lg">
               <Users className="w-6 h-6 text-purple-400" />
             </div>
-            <span className="text-xs text-gray-400 uppercase tracking-wider">Parceiros</span>
+            <span className="text-xs text-gray-400 uppercase tracking-wider">Clientes</span>
           </div>
           <div className="text-4xl font-bold text-white mb-2">
-            {stats.total_suppliers}
+            {stats.clientes_atendidos}
           </div>
-          <p className="text-sm text-gray-400">Fornecedores ativos</p>
+          <p className="text-sm text-gray-400">Clientes atendidos</p>
         </div>
       </div>
 
