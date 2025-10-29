@@ -1,17 +1,16 @@
 import { useState, useEffect } from 'react'
 import { X, Users, Building2, Mail, Lock, Edit2, Trash2, Save, XCircle, Search, Filter } from 'lucide-react'
 
+// ✅ INTERFACE CORRETA - Alinhada com a estrutura do banco
 interface Usuario {
   id: number
-  nome: string
-  email: string
-  cod: string
-  fornecedor: string
-  cargo: string | null
-  perfil: string
-  acesso_ia: number
-  ativo: number
-  criado_em: string
+  nome_completo: string      // ✅ Correto
+  email: string              // ✅ Correto
+  empresa_cod: string        // ✅ Correto (vem do JOIN)
+  empresa_nome: string       // ✅ Correto (vem do JOIN)
+  perfil: string            // ✅ Correto
+  acesso_ia: number         // ✅ Correto
+  ativo: number             // ✅ Correto
 }
 
 interface AdminPanelProps {
@@ -37,10 +36,11 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
       const response = await fetch('https://comlink-api.josimarmarianocel.workers.dev/admin/usuarios')
       const data = await response.json()
       
-      if (data.sucesso) {
-        setUsuarios(data.usuarios)
+      // ✅ API RETORNA ARRAY DIRETO (não tem .sucesso)
+      if (Array.isArray(data)) {
+        setUsuarios(data)
         // Extrair empresas únicas
-        const codsUnicos = [...new Set(data.usuarios.map((u: Usuario) => u.cod))]
+        const codsUnicos = [...new Set(data.map((u: Usuario) => u.empresa_cod))]
         setEmpresas(codsUnicos)
       }
     } catch (error) {
@@ -54,13 +54,11 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
   const iniciarEdicao = (usuario: Usuario) => {
     setEditingId(usuario.id)
     setEditData({
-      nome: usuario.nome,
+      nome_completo: usuario.nome_completo,  // ✅ Correto
       email: usuario.email,
       perfil: usuario.perfil,
       acesso_ia: usuario.acesso_ia,
-      ativo: usuario.ativo,
-      cargo: usuario.cargo || '',
-      fornecedor: usuario.fornecedor
+      ativo: usuario.ativo
     })
   }
 
@@ -147,18 +145,18 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
   // Filtrar usuários
   const usuariosFiltrados = usuarios.filter(usuario => {
     const matchSearch = 
-      usuario.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      usuario.nome_completo.toLowerCase().includes(searchTerm.toLowerCase()) ||
       usuario.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      usuario.fornecedor.toLowerCase().includes(searchTerm.toLowerCase())
+      usuario.empresa_nome.toLowerCase().includes(searchTerm.toLowerCase())
     
-    const matchEmpresa = filterCod === 'all' || usuario.cod === filterCod
+    const matchEmpresa = filterCod === 'all' || usuario.empresa_cod === filterCod
 
     return matchSearch && matchEmpresa
   })
 
   // Agrupar por empresa
   const usuariosPorEmpresa = empresas.reduce((acc, cod) => {
-    acc[cod] = usuariosFiltrados.filter(u => u.cod === cod)
+    acc[cod] = usuariosFiltrados.filter(u => u.empresa_cod === cod)
     return acc
   }, {} as Record<string, Usuario[]>)
 
@@ -196,7 +194,7 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Buscar por nome, email ou fornecedor..."
+                placeholder="Buscar por nome, email ou empresa..."
                 className="w-full pl-10 pr-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20"
               />
             </div>
@@ -250,12 +248,17 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                 const usuariosEmpresa = usuariosPorEmpresa[cod]
                 if (usuariosEmpresa.length === 0) return null
 
+                const nomeEmpresa = usuariosEmpresa[0]?.empresa_nome || cod
+
                 return (
                   <div key={cod} className="space-y-3">
                     <div className="flex items-center gap-2 px-4 py-2 bg-slate-800/30 rounded-lg border border-slate-700/50">
                       <Building2 className="w-5 h-5 text-cyan-400" />
-                      <h3 className="text-lg font-bold text-white">{cod.toUpperCase()}</h3>
-                      <span className="ml-auto text-slate-400 text-sm">
+                      <div className="flex-1">
+                        <h3 className="text-lg font-bold text-white">{nomeEmpresa}</h3>
+                        <p className="text-xs text-slate-400">COD: {cod.toUpperCase()}</p>
+                      </div>
+                      <span className="text-slate-400 text-sm">
                         {usuariosEmpresa.length} usuário{usuariosEmpresa.length !== 1 ? 's' : ''}
                       </span>
                     </div>
@@ -340,39 +343,21 @@ function UsuarioCard({
     return (
       <div className="p-4 bg-slate-800/50 border-2 border-cyan-500 rounded-xl space-y-3">
         <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-xs text-slate-400 mb-1">Nome</label>
+          <div className="col-span-2">
+            <label className="block text-xs text-slate-400 mb-1">Nome Completo</label>
             <input
               type="text"
-              value={editData.nome || ''}
-              onChange={(e) => setEditData({ ...editData, nome: e.target.value })}
+              value={editData.nome_completo || ''}
+              onChange={(e) => setEditData({ ...editData, nome_completo: e.target.value })}
               className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white text-sm focus:border-cyan-500 focus:outline-none"
             />
           </div>
-          <div>
+          <div className="col-span-2">
             <label className="block text-xs text-slate-400 mb-1">Email</label>
             <input
               type="email"
               value={editData.email || ''}
               onChange={(e) => setEditData({ ...editData, email: e.target.value })}
-              className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white text-sm focus:border-cyan-500 focus:outline-none"
-            />
-          </div>
-          <div>
-            <label className="block text-xs text-slate-400 mb-1">Fornecedor</label>
-            <input
-              type="text"
-              value={editData.fornecedor || ''}
-              onChange={(e) => setEditData({ ...editData, fornecedor: e.target.value })}
-              className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white text-sm focus:border-cyan-500 focus:outline-none"
-            />
-          </div>
-          <div>
-            <label className="block text-xs text-slate-400 mb-1">Cargo</label>
-            <input
-              type="text"
-              value={editData.cargo || ''}
-              onChange={(e) => setEditData({ ...editData, cargo: e.target.value })}
               className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white text-sm focus:border-cyan-500 focus:outline-none"
             />
           </div>
@@ -396,6 +381,17 @@ function UsuarioCard({
             >
               <option value={1}>Ativo</option>
               <option value={0}>Inativo</option>
+            </select>
+          </div>
+          <div className="col-span-2">
+            <label className="block text-xs text-slate-400 mb-1">Acesso IA</label>
+            <select
+              value={editData.acesso_ia || 1}
+              onChange={(e) => setEditData({ ...editData, acesso_ia: Number(e.target.value) })}
+              className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white text-sm focus:border-cyan-500 focus:outline-none"
+            >
+              <option value={1}>Liberado</option>
+              <option value={0}>Bloqueado</option>
             </select>
           </div>
         </div>
@@ -425,7 +421,7 @@ function UsuarioCard({
       <div className="flex items-start justify-between">
         <div className="flex-1">
           <div className="flex items-center gap-3 mb-2">
-            <h3 className="text-lg font-semibold text-white">{usuario.nome}</h3>
+            <h3 className="text-lg font-semibold text-white">{usuario.nome_completo}</h3>
             <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
               usuario.ativo === 1 
                 ? 'bg-green-500/20 text-green-400' 
@@ -440,6 +436,13 @@ function UsuarioCard({
             }`}>
               {usuario.perfil}
             </span>
+            <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+              usuario.acesso_ia === 1
+                ? 'bg-cyan-500/20 text-cyan-400'
+                : 'bg-slate-500/20 text-slate-400'
+            }`}>
+              {usuario.acesso_ia === 1 ? '🤖 IA' : '🚫 Sem IA'}
+            </span>
           </div>
 
           <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm">
@@ -449,15 +452,7 @@ function UsuarioCard({
             </div>
             <div className="flex items-center gap-2 text-slate-400">
               <Building2 className="w-4 h-4" />
-              {usuario.fornecedor}
-            </div>
-            {usuario.cargo && (
-              <div className="text-slate-400">
-                Cargo: {usuario.cargo}
-              </div>
-            )}
-            <div className="text-slate-400">
-              COD: <span className="text-cyan-400 font-mono">{usuario.cod}</span>
+              {usuario.empresa_nome}
             </div>
           </div>
         </div>
@@ -478,7 +473,7 @@ function UsuarioCard({
             <Lock className="w-4 h-4" />
           </button>
           <button
-            onClick={() => onDelete(usuario.id, usuario.nome)}
+            onClick={() => onDelete(usuario.id, usuario.nome_completo)}
             className="p-2 bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg hover:bg-red-500/20 transition-all"
             title="Excluir"
           >
