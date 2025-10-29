@@ -252,8 +252,10 @@ function App() {
             />
           )}
           {currentPage === 'analytics' && <Analytics />}
-          {/* ✅ MODIFICADO: Admin só renderiza se for super_admin */}
-          {currentPage === 'admin' && isSuperAdmin && <AdminPanel />}
+          {/* ✅ CORRIGIDO: Admin com função onClose */}
+          {currentPage === 'admin' && isSuperAdmin && (
+            <AdminPanel onClose={() => setCurrentPage('dashboard')} />
+          )}
         </main>
       </div>
     </div>
