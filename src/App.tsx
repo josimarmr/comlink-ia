@@ -65,11 +65,11 @@ function App() {
       const assistantMessage = data.message || data.response || 'Sem resposta'
       
       // Se tiver gráfico, adicionar ao estado
-      if (data.type === 'chart' && data.chart) {
+      if (data.type === 'chart' && data.chartData) {
         setMessages(prev => [...prev, { 
           role: 'assistant', 
           content: assistantMessage,
-          chart: data.chart,
+          chartData: data.chartData,
           type: 'chart'
         }])
       } else {
@@ -114,21 +114,18 @@ function App() {
       {/* Sidebar */}
       <div className={`${sidebarOpen ? 'w-72' : 'w-0'} transition-all duration-300 bg-slate-900/70 backdrop-blur-2xl border-r border-slate-800/50 overflow-hidden relative z-10`}>
         <div className="p-6">
-          {/* Logo */}
-          <div className="flex items-center justify-center mb-8">
-            <div className="relative">
-              <div className="absolute inset-0 bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-500 rounded-2xl blur-xl opacity-50" />
-              <div className="relative bg-white rounded-2xl p-5 shadow-2xl">
-                <img src="/logo.png" alt="COMLINK" className="h-28 w-auto" />
+          {/* Fornecedor Info */}
+          <div className="mb-8 p-5 bg-gradient-to-br from-slate-800/50 to-slate-800/30 backdrop-blur-xl rounded-2xl border border-slate-700/50">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-12 h-12 bg-gradient-to-br from-cyan-500 via-blue-500 to-purple-500 rounded-xl flex items-center justify-center shadow-lg">
+                <span className="text-white font-black text-lg">JM</span>
+              </div>
+              <div>
+                <p className="text-xs text-slate-400 font-semibold">Fornecedor</p>
+                <p className="text-sm font-bold bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">JM TECNOLOGIA</p>
               </div>
             </div>
-          </div>
-
-          {/* Fornecedor Info */}
-          <div className="mb-8 p-4 bg-gradient-to-br from-slate-800/50 to-slate-800/30 backdrop-blur-xl rounded-2xl border border-slate-700/50">
-            <p className="text-xs text-slate-400 mb-1 font-semibold">Fornecedor</p>
-            <p className="text-sm font-bold bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">JM TECNOLOGIA</p>
-            <div className="flex items-center gap-2 mt-2">
+            <div className="flex items-center gap-2 pl-1">
               <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
               <p className="text-xs text-slate-500">Online</p>
             </div>
