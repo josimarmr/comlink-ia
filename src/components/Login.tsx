@@ -1,15 +1,16 @@
 import { useState } from 'react'
-import { LogIn, Puzzle, Lock, User } from 'lucide-react'
+import { LogIn, Puzzle, Lock, User, UserPlus } from 'lucide-react'
 
 interface LoginProps {
-  onLogin: () => void
+  onLogin: (userData: any) => void
 }
 
 export default function Login({ onLogin }: LoginProps) {
-  const [fornecedor, setFornecedor] = useState('JM TECNOLOGIA')
+  const [email, setEmail] = useState('')
   const [senha, setSenha] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [showCadastro, setShowCadastro] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -18,12 +19,28 @@ export default function Login({ onLogin }: LoginProps) {
     
     await new Promise(resolve => setTimeout(resolve, 800))
     
-    if (fornecedor === 'JM TECNOLOGIA' && senha === '123456') {
-      onLogin()
+    // Simulação - depois conectar com API real
+    if (email === 'admin@jmtecnologia.com' && senha === '123456') {
+      const userData = {
+        id: 1,
+        nome: 'Administrador',
+        email: email,
+        fornecedor: 'JM TECNOLOGIA',
+        cargo: 'Administrador'
+      }
+      
+      // Salvar no localStorage
+      localStorage.setItem('user', JSON.stringify(userData))
+      
+      onLogin(userData)
     } else {
-      setError('Credenciais inválidas! Verifique o fornecedor e senha.')
+      setError('Email ou senha incorretos!')
       setLoading(false)
     }
+  }
+
+  if (showCadastro) {
+    return <CadastroUsuario onVoltar={() => setShowCadastro(false)} />
   }
 
   return (
@@ -36,16 +53,6 @@ export default function Login({ onLogin }: LoginProps) {
       </div>
 
       <div className="w-full max-w-md relative z-10">
-        {/* Logo */}
-        <div className="flex justify-center mb-12 animate-fadeIn">
-          <div className="relative">
-            <div className="absolute inset-0 bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-500 rounded-3xl blur-2xl opacity-50" />
-            <div className="relative bg-white rounded-3xl p-8 shadow-2xl">
-              <img src="/logo.png" alt="COMLINK" className="h-40 w-auto" />
-            </div>
-          </div>
-        </div>
-
         {/* Login Card */}
         <div className="bg-slate-900/50 backdrop-blur-2xl border border-slate-800 rounded-3xl p-8 shadow-2xl animate-slideUp">
           {/* Header */}
@@ -62,20 +69,20 @@ export default function Login({ onLogin }: LoginProps) {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Campo Fornecedor */}
+            {/* Campo Email */}
             <div className="space-y-2">
               <label className="block text-sm font-semibold text-slate-300">
-                Fornecedor
+                Email
               </label>
               <div className="relative">
                 <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
                 <input
-                  type="text"
-                  value={fornecedor}
-                  onChange={(e) => setFornecedor(e.target.value)}
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   className="w-full pl-12 pr-4 py-4 bg-slate-800/50 backdrop-blur-xl border border-slate-700 rounded-2xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-transparent transition-all font-medium"
-                  placeholder="Nome do fornecedor"
-                  readOnly
+                  placeholder="seu@email.com"
+                  required
                 />
               </div>
             </div>
@@ -93,6 +100,7 @@ export default function Login({ onLogin }: LoginProps) {
                   onChange={(e) => setSenha(e.target.value)}
                   className="w-full pl-12 pr-4 py-4 bg-slate-800/50 backdrop-blur-xl border border-slate-700 rounded-2xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-transparent transition-all font-medium"
                   placeholder="Digite sua senha"
+                  required
                 />
               </div>
             </div>
@@ -125,16 +133,27 @@ export default function Login({ onLogin }: LoginProps) {
             </button>
           </form>
 
-          {/* Credenciais de Acesso */}
+          {/* Link Cadastro */}
+          <div className="mt-6 text-center">
+            <button
+              onClick={() => setShowCadastro(true)}
+              className="text-cyan-400 hover:text-cyan-300 text-sm font-medium flex items-center gap-2 mx-auto transition-colors"
+            >
+              <UserPlus className="w-4 h-4" />
+              Não tem conta? Cadastre-se
+            </button>
+          </div>
+
+          {/* Credenciais de Teste */}
           <div className="mt-8 pt-6 border-t border-slate-800">
             <div className="bg-slate-800/30 backdrop-blur-xl rounded-2xl p-5 space-y-3">
               <p className="text-sm font-semibold text-slate-300 text-center mb-3">
-                🔐 Credenciais de Acesso
+                🔐 Credenciais de Teste
               </p>
               <div className="space-y-2">
                 <div className="flex justify-between items-center p-3 bg-slate-900/50 rounded-xl">
-                  <span className="text-slate-400 text-sm">Fornecedor:</span>
-                  <span className="text-cyan-400 font-mono text-sm font-bold">JM TECNOLOGIA</span>
+                  <span className="text-slate-400 text-sm">Email:</span>
+                  <span className="text-cyan-400 font-mono text-sm font-bold">admin@jmtecnologia.com</span>
                 </div>
                 <div className="flex justify-between items-center p-3 bg-slate-900/50 rounded-xl">
                   <span className="text-slate-400 text-sm">Senha:</span>
@@ -177,6 +196,95 @@ export default function Login({ onLogin }: LoginProps) {
         .animate-slideUp { animation: slideUp 0.6s ease-out; }
         .animate-shake { animation: shake 0.3s ease-out; }
       `}</style>
+    </div>
+  )
+}
+
+// Componente de Cadastro
+function CadastroUsuario({ onVoltar }: { onVoltar: () => void }) {
+  const [nome, setNome] = useState('')
+  const [email, setEmail] = useState('')
+  const [senha, setSenha] = useState('')
+  const [cargo, setCargo] = useState('')
+
+  const handleCadastro = (e: React.FormEvent) => {
+    e.preventDefault()
+    // TODO: Conectar com API
+    alert('Cadastro realizado! (aguardando integração com API)')
+    onVoltar()
+  }
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-4">
+      <div className="w-full max-w-md">
+        <div className="bg-slate-900/50 backdrop-blur-2xl border border-slate-800 rounded-3xl p-8 shadow-2xl">
+          <h2 className="text-2xl font-black bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent mb-6 text-center">
+            Cadastro de Usuário
+          </h2>
+          
+          <form onSubmit={handleCadastro} className="space-y-4">
+            <div>
+              <label className="block text-sm font-semibold text-slate-300 mb-2">Nome Completo</label>
+              <input
+                type="text"
+                value={nome}
+                onChange={(e) => setNome(e.target.value)}
+                className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl text-white"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-slate-300 mb-2">Email</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl text-white"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-slate-300 mb-2">Senha</label>
+              <input
+                type="password"
+                value={senha}
+                onChange={(e) => setSenha(e.target.value)}
+                className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl text-white"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-slate-300 mb-2">Cargo</label>
+              <input
+                type="text"
+                value={cargo}
+                onChange={(e) => setCargo(e.target.value)}
+                className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl text-white"
+                placeholder="Ex: Gerente Comercial"
+              />
+            </div>
+
+            <div className="flex gap-3 pt-4">
+              <button
+                type="button"
+                onClick={onVoltar}
+                className="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-xl transition-colors"
+              >
+                Voltar
+              </button>
+              <button
+                type="submit"
+                className="flex-1 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white rounded-xl transition-all"
+              >
+                Cadastrar
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
     </div>
   )
 }
