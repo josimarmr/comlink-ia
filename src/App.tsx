@@ -16,6 +16,7 @@ interface Message {
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [userData, setUserData] = useState<any>(null)
   const [currentPage, setCurrentPage] = useState<'dashboard' | 'analytics' | 'admin'>('dashboard')
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
@@ -23,6 +24,20 @@ function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const chatEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+
+  // Verificar login ao carregar
+  useEffect(() => {
+    const savedUser = localStorage.getItem('user')
+    if (savedUser) {
+      try {
+        const user = JSON.parse(savedUser)
+        setUserData(user)
+        setIsLoggedIn(true)
+      } catch (error) {
+        localStorage.removeItem('user')
+      }
+    }
+  }, [])
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -34,11 +49,14 @@ function App() {
     }
   }, [currentPage])
 
-  const handleLogin = () => {
+  const handleLogin = (user: any) => {
+    setUserData(user)
     setIsLoggedIn(true)
   }
 
   const handleLogout = () => {
+    localStorage.removeItem('user')
+    setUserData(null)
     setIsLoggedIn(false)
     setMessages([])
     setCurrentPage('dashboard')
@@ -118,16 +136,24 @@ function App() {
           <div className="mb-8 p-5 bg-gradient-to-br from-slate-800/50 to-slate-800/30 backdrop-blur-xl rounded-2xl border border-slate-700/50">
             <div className="flex items-center gap-3 mb-3">
               <div className="w-12 h-12 bg-gradient-to-br from-cyan-500 via-blue-500 to-purple-500 rounded-xl flex items-center justify-center shadow-lg">
-                <span className="text-white font-black text-lg">JM</span>
+                <span className="text-white font-black text-lg">
+                  {userData?.fornecedor?.substring(0, 2) || 'JM'}
+                </span>
               </div>
               <div>
                 <p className="text-xs text-slate-400 font-semibold">Fornecedor</p>
-                <p className="text-sm font-bold bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">JM TECNOLOGIA</p>
+                <p className="text-sm font-bold bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
+                  {userData?.fornecedor || 'JM TECNOLOGIA'}
+                </p>
               </div>
             </div>
-            <div className="flex items-center gap-2 pl-1">
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-              <p className="text-xs text-slate-500">Online</p>
+            <div className="pl-1">
+              <p className="text-xs text-slate-500 mb-1">{userData?.nome || 'Usuário'}</p>
+              <p className="text-xs text-slate-600">{userData?.cargo || 'Administrador'}</p>
+              <div className="flex items-center gap-2 mt-2">
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                <p className="text-xs text-slate-500">Online</p>
+              </div>
             </div>
           </div>
 
