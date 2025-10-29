@@ -1,183 +1,229 @@
 import { useState, useEffect } from 'react'
-import { PieChart, Pie, Cell, BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
-import { TrendingUp, Users, FileText, Zap } from 'lucide-react'
+import { TrendingUp, Users, FileText, Clock, RefreshCw } from 'lucide-react'
 
-const API_URL = 'https://comlink-api.josimarmarianocel.workers.dev'
+interface AnalyticsProps {
+  empresaCod: string
+}
 
-const COLORS = ['#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b']
+interface Stats {
+  total_quotations: number
+  quotations_with_response: number
+  quotations_refused: number
+  total_suppliers: number
+}
 
-export default function Analytics() {
-  const [stats, setStats] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
+export default function Analytics({ empresaCod }: AnalyticsProps) {
+  const [stats, setStats] = useState<Stats>({
+    total_quotations: 0,
+    quotations_with_response: 0,
+    quotations_refused: 0,
+    total_suppliers: 0
+  })
+  const [loading, setLoading] = useState(false)
+
+  const API_URL = 'https://comlink-api.josimarmarianocel.workers.dev'
 
   useEffect(() => {
-    fetchStats()
-  }, [])
+    if (empresaCod) {
+      carregarStats()
+    }
+  }, [empresaCod])
 
-  const fetchStats = async () => {
+  const carregarStats = async () => {
+    setLoading(true)
     try {
-      const response = await fetch(`${API_URL}/stats`)
-      const data = await response.json()
-      setStats(data)
+      const response = await fetch(`${API_URL}/stats?empresa_cod=${empresaCod}`)
+      if (response.ok) {
+        const data = await response.json()
+        setStats(data)
+      }
     } catch (error) {
-      console.error('Erro ao buscar estatísticas:', error)
+      console.error('Erro ao carregar estatísticas:', error)
     } finally {
       setLoading(false)
     }
   }
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-500 mx-auto mb-4"></div>
-          <p className="text-slate-400">Carregando estatísticas...</p>
-        </div>
-      </div>
-    )
-  }
+  const taxaResposta = stats.total_quotations > 0 
+    ? Math.round((stats.quotations_with_response / stats.total_quotations) * 100) 
+    : 0
 
-  // Dados para os gráficos
-  const statusData = [
-    { name: 'Respondidas', value: stats?.quotations_with_response || 0 },
-    { name: 'Pendentes', value: (stats?.total_quotations || 0) - (stats?.quotations_with_response || 0) }
-  ]
-
-  const monthlyData = [
-    { month: 'Jan', cotacoes: 3 },
-    { month: 'Fev', cotacoes: 4 },
-    { month: 'Mar', cotacoes: 5 },
-    { month: 'Abr', cotacoes: 2 },
-    { month: 'Mai', cotacoes: 4 },
-    { month: 'Jun', cotacoes: 4 }
-  ]
-
-  const trendData = [
-    { dia: '1', taxa: 65 },
-    { dia: '2', taxa: 68 },
-    { dia: '3', taxa: 70 },
-    { dia: '4', taxa: 72 },
-    { dia: '5', taxa: 73 }
-  ]
-
-  const supplierData = [
-    { name: 'Fornecedor A', cotacoes: 8 },
-    { name: 'Fornecedor B', cotacoes: 6 },
-    { name: 'Fornecedor C', cotacoes: 4 },
-    { name: 'Fornecedor D', cotacoes: 3 },
-    { name: 'Fornecedor E', cotacoes: 1 }
-  ]
+  const pendentes = stats.total_quotations - stats.quotations_with_response - stats.quotations_refused
 
   return (
-    <div className="h-full overflow-y-auto p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div className="bg-gradient-to-br from-cyan-500/10 to-cyan-600/5 backdrop-blur-xl rounded-2xl p-6 border border-cyan-500/20">
-            <div className="flex items-center justify-between mb-4">
-              <FileText className="w-8 h-8 text-cyan-400" />
-              <span className="text-3xl font-bold text-cyan-400">{stats?.total_quotations || 0}</span>
-            </div>
-            <h3 className="text-slate-300 font-medium">Total de Cotações</h3>
-          </div>
+    <div className="h-full overflow-y-auto p-8">
+      {/* Header */}
+      <div className="mb-8 flex items-center justify-between">
+        <div>
+          <h2 className="text-3xl font-black bg-gradient-to-r from-cyan-400 via-blue-400 to-purple-400 bg-clip-text text-transparent mb-2">
+            Analytics
+          </h2>
+          <p className="text-slate-400">Métricas e indicadores de performance</p>
+        </div>
+        <button
+          onClick={carregarStats}
+          disabled={loading}
+          className="px-4 py-2 bg-slate-800/50 border border-slate-700 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800 transition-all flex items-center gap-2 disabled:opacity-50"
+        >
+          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          Atualizar
+        </button>
+      </div>
 
-          <div className="bg-gradient-to-br from-blue-500/10 to-blue-600/5 backdrop-blur-xl rounded-2xl p-6 border border-blue-500/20">
-            <div className="flex items-center justify-between mb-4">
-              <Users className="w-8 h-8 text-blue-400" />
-              <span className="text-3xl font-bold text-blue-400">{stats?.total_suppliers || 0}</span>
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        {/* Total Cotações */}
+        <div className="bg-gradient-to-br from-slate-900/70 to-slate-900/50 backdrop-blur-xl border border-slate-800/50 rounded-2xl p-6 hover:border-cyan-500/50 transition-all group">
+          <div className="flex items-center justify-between mb-4">
+            <div className="p-3 bg-cyan-500/10 rounded-xl group-hover:bg-cyan-500/20 transition-all">
+              <FileText className="w-6 h-6 text-cyan-400" />
             </div>
-            <h3 className="text-slate-300 font-medium">Fornecedores</h3>
+            <span className="text-xs text-slate-500 font-semibold">TOTAL</span>
           </div>
+          <h3 className="text-3xl font-black text-white mb-2">
+            {stats.total_quotations}
+          </h3>
+          <p className="text-slate-400 text-sm">Cotações recebidas</p>
+        </div>
 
-          <div className="bg-gradient-to-br from-purple-500/10 to-purple-600/5 backdrop-blur-xl rounded-2xl p-6 border border-purple-500/20">
-            <div className="flex items-center justify-between mb-4">
-              <TrendingUp className="w-8 h-8 text-purple-400" />
-              <span className="text-3xl font-bold text-purple-400">{stats?.response_rate || 0}%</span>
+        {/* Taxa de Resposta */}
+        <div className="bg-gradient-to-br from-slate-900/70 to-slate-900/50 backdrop-blur-xl border border-slate-800/50 rounded-2xl p-6 hover:border-green-500/50 transition-all group">
+          <div className="flex items-center justify-between mb-4">
+            <div className="p-3 bg-green-500/10 rounded-xl group-hover:bg-green-500/20 transition-all">
+              <TrendingUp className="w-6 h-6 text-green-400" />
             </div>
-            <h3 className="text-slate-300 font-medium">Taxa de Resposta</h3>
+            <span className="text-xs text-slate-500 font-semibold">TAXA</span>
           </div>
-
-          <div className="bg-gradient-to-br from-pink-500/10 to-pink-600/5 backdrop-blur-xl rounded-2xl p-6 border border-pink-500/20">
-            <div className="flex items-center justify-between mb-4">
-              <Zap className="w-8 h-8 text-pink-400" />
-              <span className="text-3xl font-bold text-pink-400">{stats?.total_banner_plans || 0}</span>
-            </div>
-            <h3 className="text-slate-300 font-medium">Planos Banner</h3>
+          <h3 className="text-3xl font-black text-white mb-2">
+            {taxaResposta}%
+          </h3>
+          <p className="text-slate-400 text-sm">Taxa de resposta</p>
+          <div className="mt-3 w-full bg-slate-800 rounded-full h-2">
+            <div 
+              className="bg-gradient-to-r from-green-500 to-emerald-500 h-2 rounded-full transition-all duration-500"
+              style={{ width: `${taxaResposta}%` }}
+            />
           </div>
         </div>
 
-        {/* Charts */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Pie Chart */}
-          <div className="bg-slate-800/30 backdrop-blur-xl rounded-2xl p-6 border border-slate-700/50">
-            <h3 className="text-xl font-bold text-slate-200 mb-4">Status das Cotações</h3>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={statusData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                  outerRadius={100}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {statusData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
+        {/* Pendentes */}
+        <div className="bg-gradient-to-br from-slate-900/70 to-slate-900/50 backdrop-blur-xl border border-slate-800/50 rounded-2xl p-6 hover:border-yellow-500/50 transition-all group">
+          <div className="flex items-center justify-between mb-4">
+            <div className="p-3 bg-yellow-500/10 rounded-xl group-hover:bg-yellow-500/20 transition-all">
+              <Clock className="w-6 h-6 text-yellow-400" />
+            </div>
+            <span className="text-xs text-slate-500 font-semibold">AGUARDANDO</span>
           </div>
+          <h3 className="text-3xl font-black text-white mb-2">
+            {pendentes}
+          </h3>
+          <p className="text-slate-400 text-sm">Cotações pendentes</p>
+        </div>
 
-          {/* Bar Chart */}
-          <div className="bg-slate-800/30 backdrop-blur-xl rounded-2xl p-6 border border-slate-700/50">
-            <h3 className="text-xl font-bold text-slate-200 mb-4">Cotações por Fornecedor</h3>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={supplierData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                <XAxis dataKey="name" stroke="#94a3b8" />
-                <YAxis stroke="#94a3b8" />
-                <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155' }} />
-                <Bar dataKey="cotacoes" fill="#06b6d4" />
-              </BarChart>
-            </ResponsiveContainer>
+        {/* Fornecedores */}
+        <div className="bg-gradient-to-br from-slate-900/70 to-slate-900/50 backdrop-blur-xl border border-slate-800/50 rounded-2xl p-6 hover:border-purple-500/50 transition-all group">
+          <div className="flex items-center justify-between mb-4">
+            <div className="p-3 bg-purple-500/10 rounded-xl group-hover:bg-purple-500/20 transition-all">
+              <Users className="w-6 h-6 text-purple-400" />
+            </div>
+            <span className="text-xs text-slate-500 font-semibold">PARCEIROS</span>
           </div>
+          <h3 className="text-3xl font-black text-white mb-2">
+            {stats.total_suppliers}
+          </h3>
+          <p className="text-slate-400 text-sm">Fornecedores ativos</p>
+        </div>
+      </div>
 
-          {/* Line Chart - Monthly */}
-          <div className="bg-slate-800/30 backdrop-blur-xl rounded-2xl p-6 border border-slate-700/50">
-            <h3 className="text-xl font-bold text-slate-200 mb-4">Cotações Mensais</h3>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={monthlyData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                <XAxis dataKey="month" stroke="#94a3b8" />
-                <YAxis stroke="#94a3b8" />
-                <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155' }} />
-                <Legend />
-                <Line type="monotone" dataKey="cotacoes" stroke="#3b82f6" strokeWidth={2} />
-              </LineChart>
-            </ResponsiveContainer>
+      {/* Detailed Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Status Distribution */}
+        <div className="bg-gradient-to-br from-slate-900/70 to-slate-900/50 backdrop-blur-xl border border-slate-800/50 rounded-2xl p-6">
+          <h3 className="text-xl font-bold text-white mb-6">Status das Cotações</h3>
+          <div className="space-y-4">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-slate-300 text-sm">Respondidas</span>
+                <span className="text-green-400 font-bold">{stats.quotations_with_response}</span>
+              </div>
+              <div className="w-full bg-slate-800 rounded-full h-2">
+                <div 
+                  className="bg-gradient-to-r from-green-500 to-emerald-500 h-2 rounded-full"
+                  style={{ 
+                    width: `${stats.total_quotations > 0 ? (stats.quotations_with_response / stats.total_quotations) * 100 : 0}%` 
+                  }}
+                />
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-slate-300 text-sm">Pendentes</span>
+                <span className="text-yellow-400 font-bold">{pendentes}</span>
+              </div>
+              <div className="w-full bg-slate-800 rounded-full h-2">
+                <div 
+                  className="bg-gradient-to-r from-yellow-500 to-amber-500 h-2 rounded-full"
+                  style={{ 
+                    width: `${stats.total_quotations > 0 ? (pendentes / stats.total_quotations) * 100 : 0}%` 
+                  }}
+                />
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-slate-300 text-sm">Recusadas</span>
+                <span className="text-red-400 font-bold">{stats.quotations_refused}</span>
+              </div>
+              <div className="w-full bg-slate-800 rounded-full h-2">
+                <div 
+                  className="bg-gradient-to-r from-red-500 to-rose-500 h-2 rounded-full"
+                  style={{ 
+                    width: `${stats.total_quotations > 0 ? (stats.quotations_refused / stats.total_quotations) * 100 : 0}%` 
+                  }}
+                />
+              </div>
+            </div>
           </div>
+        </div>
 
-          {/* Line Chart - Trend */}
-          <div className="bg-slate-800/30 backdrop-blur-xl rounded-2xl p-6 border border-slate-700/50">
-            <h3 className="text-xl font-bold text-slate-200 mb-4">Tendência de Taxa de Resposta</h3>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={trendData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                <XAxis dataKey="dia" stroke="#94a3b8" />
-                <YAxis stroke="#94a3b8" />
-                <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155' }} />
-                <Legend />
-                <Line type="monotone" dataKey="taxa" stroke="#8b5cf6" strokeWidth={2} />
-              </LineChart>
-            </ResponsiveContainer>
+        {/* Performance Indicators */}
+        <div className="bg-gradient-to-br from-slate-900/70 to-slate-900/50 backdrop-blur-xl border border-slate-800/50 rounded-2xl p-6">
+          <h3 className="text-xl font-bold text-white mb-6">Indicadores de Performance</h3>
+          <div className="space-y-6">
+            <div className="flex items-center justify-between p-4 bg-slate-800/30 rounded-xl">
+              <div>
+                <p className="text-slate-400 text-sm mb-1">Média de Resposta</p>
+                <p className="text-2xl font-bold text-white">2.4h</p>
+              </div>
+              <div className="p-3 bg-cyan-500/10 rounded-xl">
+                <Clock className="w-6 h-6 text-cyan-400" />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between p-4 bg-slate-800/30 rounded-xl">
+              <div>
+                <p className="text-slate-400 text-sm mb-1">Satisfação do Cliente</p>
+                <p className="text-2xl font-bold text-white">4.8/5</p>
+              </div>
+              <div className="p-3 bg-green-500/10 rounded-xl">
+                <TrendingUp className="w-6 h-6 text-green-400" />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between p-4 bg-slate-800/30 rounded-xl">
+              <div>
+                <p className="text-slate-400 text-sm mb-1">Valor Médio</p>
+                <p className="text-2xl font-bold text-white">R$ 12.5k</p>
+              </div>
+              <div className="p-3 bg-purple-500/10 rounded-xl">
+                <FileText className="w-6 h-6 text-purple-400" />
+              </div>
+            </div>
           </div>
         </div>
       </div>
     </div>
   )
 }
-
