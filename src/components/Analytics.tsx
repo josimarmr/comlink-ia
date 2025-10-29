@@ -1,229 +1,231 @@
-import { useState, useEffect } from 'react'
-import { TrendingUp, Users, FileText, Clock, RefreshCw } from 'lucide-react'
+import { useState, useEffect } from 'react';
+import { 
+  FileText, 
+  TrendingUp, 
+  Clock, 
+  Users,
+  Target,
+  DollarSign,
+  TrendingDown
+} from 'lucide-react';
 
-interface AnalyticsProps {
-  empresaCod: string
-}
-
-interface Stats {
-  total_quotations: number
-  quotations_with_response: number
-  quotations_refused: number
-  total_suppliers: number
-}
-
-export default function Analytics({ empresaCod }: AnalyticsProps) {
-  const [stats, setStats] = useState<Stats>({
+export default function Analytics({ empresaCod }) {
+  const [stats, setStats] = useState({
     total_quotations: 0,
     quotations_with_response: 0,
     quotations_refused: 0,
-    total_suppliers: 0
-  })
-  const [loading, setLoading] = useState(false)
-
-  const API_URL = 'https://comlink-api.josimarmarianocel.workers.dev'
+    total_suppliers: 0,
+    taxa_conversao: 0,
+    ticket_medio: 0,
+    valor_total_faturado: 0
+  });
+  const [loading, setLoading] = useState(false);
+  
+  const API_URL = "https://comlink-api.josimarmarianocel.workers.dev";
 
   useEffect(() => {
     if (empresaCod) {
-      carregarStats()
+      loadStats();
     }
-  }, [empresaCod])
+  }, [empresaCod]);
 
-  const carregarStats = async () => {
-    setLoading(true)
+  const loadStats = async () => {
+    setLoading(true);
     try {
-      const response = await fetch(`${API_URL}/stats?empresa_cod=${empresaCod}`)
+      const response = await fetch(`${API_URL}/stats?empresa_cod=${empresaCod}`);
       if (response.ok) {
-        const data = await response.json()
-        setStats(data)
+        const data = await response.json();
+        setStats(data);
       }
     } catch (error) {
-      console.error('Erro ao carregar estatísticas:', error)
+      console.error('Erro ao carregar estatísticas:', error);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const taxaResposta = stats.total_quotations > 0 
-    ? Math.round((stats.quotations_with_response / stats.total_quotations) * 100) 
-    : 0
+    ? Math.round((stats.quotations_with_response / stats.total_quotations) * 100)
+    : 0;
 
-  const pendentes = stats.total_quotations - stats.quotations_with_response - stats.quotations_refused
+  const cotacoesPendentes = stats.total_quotations - stats.quotations_with_response - stats.quotations_refused;
+
+  // Formatar valores
+  const formatCurrency = (value) => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL'
+    }).format(value);
+  };
+
+  const formatNumber = (value) => {
+    return new Intl.NumberFormat('pt-BR').format(value);
+  };
 
   return (
     <div className="h-full overflow-y-auto p-8">
       {/* Header */}
-      <div className="mb-8 flex items-center justify-between">
+      <div className="flex justify-between items-center mb-8">
         <div>
-          <h2 className="text-3xl font-black bg-gradient-to-r from-cyan-400 via-blue-400 to-purple-400 bg-clip-text text-transparent mb-2">
-            Analytics
-          </h2>
-          <p className="text-slate-400">Métricas e indicadores de performance</p>
+          <h1 className="text-3xl font-bold text-cyan-400">Analytics</h1>
+          <p className="text-gray-400 mt-1">Métricas e indicadores de performance</p>
         </div>
         <button
-          onClick={carregarStats}
+          onClick={loadStats}
           disabled={loading}
-          className="px-4 py-2 bg-slate-800/50 border border-slate-700 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800 transition-all flex items-center gap-2 disabled:opacity-50"
+          className="flex items-center gap-2 px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg transition-colors disabled:opacity-50"
         >
-          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          <svg className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
           Atualizar
         </button>
       </div>
 
-      {/* Stats Cards */}
+      {/* Cards Principais */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        {/* Total Cotações */}
-        <div className="bg-gradient-to-br from-slate-900/70 to-slate-900/50 backdrop-blur-xl border border-slate-800/50 rounded-2xl p-6 hover:border-cyan-500/50 transition-all group">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-3 bg-cyan-500/10 rounded-xl group-hover:bg-cyan-500/20 transition-all">
+        {/* Total de Cotações */}
+        <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50 hover:border-cyan-500/50 transition-all">
+          <div className="flex justify-between items-start mb-4">
+            <div className="p-3 bg-cyan-500/10 rounded-lg">
               <FileText className="w-6 h-6 text-cyan-400" />
             </div>
-            <span className="text-xs text-slate-500 font-semibold">TOTAL</span>
+            <span className="text-xs text-gray-400 uppercase tracking-wider">Total</span>
           </div>
-          <h3 className="text-3xl font-black text-white mb-2">
+          <div className="text-4xl font-bold text-white mb-2">
             {stats.total_quotations}
-          </h3>
-          <p className="text-slate-400 text-sm">Cotações recebidas</p>
+          </div>
+          <p className="text-sm text-gray-400">Cotações recebidas</p>
         </div>
 
         {/* Taxa de Resposta */}
-        <div className="bg-gradient-to-br from-slate-900/70 to-slate-900/50 backdrop-blur-xl border border-slate-800/50 rounded-2xl p-6 hover:border-green-500/50 transition-all group">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-3 bg-green-500/10 rounded-xl group-hover:bg-green-500/20 transition-all">
+        <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50 hover:border-green-500/50 transition-all">
+          <div className="flex justify-between items-start mb-4">
+            <div className="p-3 bg-green-500/10 rounded-lg">
               <TrendingUp className="w-6 h-6 text-green-400" />
             </div>
-            <span className="text-xs text-slate-500 font-semibold">TAXA</span>
+            <span className="text-xs text-gray-400 uppercase tracking-wider">Taxa</span>
           </div>
-          <h3 className="text-3xl font-black text-white mb-2">
+          <div className="text-4xl font-bold text-white mb-2">
             {taxaResposta}%
-          </h3>
-          <p className="text-slate-400 text-sm">Taxa de resposta</p>
-          <div className="mt-3 w-full bg-slate-800 rounded-full h-2">
+          </div>
+          <div className="w-full bg-gray-700 rounded-full h-2 mb-2">
             <div 
-              className="bg-gradient-to-r from-green-500 to-emerald-500 h-2 rounded-full transition-all duration-500"
+              className="bg-gradient-to-r from-green-500 to-cyan-500 h-2 rounded-full transition-all duration-500"
               style={{ width: `${taxaResposta}%` }}
             />
           </div>
+          <p className="text-sm text-gray-400">Taxa de resposta</p>
         </div>
 
-        {/* Pendentes */}
-        <div className="bg-gradient-to-br from-slate-900/70 to-slate-900/50 backdrop-blur-xl border border-slate-800/50 rounded-2xl p-6 hover:border-yellow-500/50 transition-all group">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-3 bg-yellow-500/10 rounded-xl group-hover:bg-yellow-500/20 transition-all">
+        {/* Cotações Aguardando */}
+        <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50 hover:border-yellow-500/50 transition-all">
+          <div className="flex justify-between items-start mb-4">
+            <div className="p-3 bg-yellow-500/10 rounded-lg">
               <Clock className="w-6 h-6 text-yellow-400" />
             </div>
-            <span className="text-xs text-slate-500 font-semibold">AGUARDANDO</span>
+            <span className="text-xs text-gray-400 uppercase tracking-wider">Aguardando</span>
           </div>
-          <h3 className="text-3xl font-black text-white mb-2">
-            {pendentes}
-          </h3>
-          <p className="text-slate-400 text-sm">Cotações pendentes</p>
+          <div className="text-4xl font-bold text-white mb-2">
+            {cotacoesPendentes}
+          </div>
+          <p className="text-sm text-gray-400">Cotações pendentes</p>
         </div>
 
-        {/* Fornecedores */}
-        <div className="bg-gradient-to-br from-slate-900/70 to-slate-900/50 backdrop-blur-xl border border-slate-800/50 rounded-2xl p-6 hover:border-purple-500/50 transition-all group">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-3 bg-purple-500/10 rounded-xl group-hover:bg-purple-500/20 transition-all">
+        {/* Fornecedores Ativos */}
+        <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50 hover:border-purple-500/50 transition-all">
+          <div className="flex justify-between items-start mb-4">
+            <div className="p-3 bg-purple-500/10 rounded-lg">
               <Users className="w-6 h-6 text-purple-400" />
             </div>
-            <span className="text-xs text-slate-500 font-semibold">PARCEIROS</span>
+            <span className="text-xs text-gray-400 uppercase tracking-wider">Parceiros</span>
           </div>
-          <h3 className="text-3xl font-black text-white mb-2">
+          <div className="text-4xl font-bold text-white mb-2">
             {stats.total_suppliers}
-          </h3>
-          <p className="text-slate-400 text-sm">Fornecedores ativos</p>
+          </div>
+          <p className="text-sm text-gray-400">Fornecedores ativos</p>
         </div>
       </div>
 
-      {/* Detailed Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Status Distribution */}
-        <div className="bg-gradient-to-br from-slate-900/70 to-slate-900/50 backdrop-blur-xl border border-slate-800/50 rounded-2xl p-6">
-          <h3 className="text-xl font-bold text-white mb-6">Status das Cotações</h3>
+      {/* Seção Dividida */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Status das Cotações */}
+        <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50">
+          <h2 className="text-xl font-semibold text-white mb-6">Status das Cotações</h2>
           <div className="space-y-4">
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-slate-300 text-sm">Respondidas</span>
-                <span className="text-green-400 font-bold">{stats.quotations_with_response}</span>
-              </div>
-              <div className="w-full bg-slate-800 rounded-full h-2">
-                <div 
-                  className="bg-gradient-to-r from-green-500 to-emerald-500 h-2 rounded-full"
-                  style={{ 
-                    width: `${stats.total_quotations > 0 ? (stats.quotations_with_response / stats.total_quotations) * 100 : 0}%` 
-                  }}
-                />
-              </div>
+            <div className="flex justify-between items-center p-4 bg-gray-700/30 rounded-lg">
+              <span className="text-gray-300">Respondidas</span>
+              <span className="text-2xl font-bold text-green-400">
+                {stats.quotations_with_response}
+              </span>
             </div>
-
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-slate-300 text-sm">Pendentes</span>
-                <span className="text-yellow-400 font-bold">{pendentes}</span>
-              </div>
-              <div className="w-full bg-slate-800 rounded-full h-2">
-                <div 
-                  className="bg-gradient-to-r from-yellow-500 to-amber-500 h-2 rounded-full"
-                  style={{ 
-                    width: `${stats.total_quotations > 0 ? (pendentes / stats.total_quotations) * 100 : 0}%` 
-                  }}
-                />
-              </div>
+            <div className="flex justify-between items-center p-4 bg-gray-700/30 rounded-lg">
+              <span className="text-gray-300">Pendentes</span>
+              <span className="text-2xl font-bold text-yellow-400">
+                {cotacoesPendentes}
+              </span>
             </div>
-
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-slate-300 text-sm">Recusadas</span>
-                <span className="text-red-400 font-bold">{stats.quotations_refused}</span>
-              </div>
-              <div className="w-full bg-slate-800 rounded-full h-2">
-                <div 
-                  className="bg-gradient-to-r from-red-500 to-rose-500 h-2 rounded-full"
-                  style={{ 
-                    width: `${stats.total_quotations > 0 ? (stats.quotations_refused / stats.total_quotations) * 100 : 0}%` 
-                  }}
-                />
-              </div>
+            <div className="flex justify-between items-center p-4 bg-gray-700/30 rounded-lg">
+              <span className="text-gray-300">Recusadas</span>
+              <span className="text-2xl font-bold text-red-400">
+                {stats.quotations_refused}
+              </span>
             </div>
           </div>
         </div>
 
-        {/* Performance Indicators */}
-        <div className="bg-gradient-to-br from-slate-900/70 to-slate-900/50 backdrop-blur-xl border border-slate-800/50 rounded-2xl p-6">
-          <h3 className="text-xl font-bold text-white mb-6">Indicadores de Performance</h3>
+        {/* Indicadores de Performance */}
+        <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50">
+          <h2 className="text-xl font-semibold text-white mb-6">Indicadores de Performance</h2>
           <div className="space-y-6">
-            <div className="flex items-center justify-between p-4 bg-slate-800/30 rounded-xl">
-              <div>
-                <p className="text-slate-400 text-sm mb-1">Média de Resposta</p>
-                <p className="text-2xl font-bold text-white">2.4h</p>
+            {/* Taxa de Conversão */}
+            <div className="flex items-start gap-4">
+              <div className="p-3 bg-blue-500/10 rounded-lg">
+                <Target className="w-6 h-6 text-blue-400" />
               </div>
-              <div className="p-3 bg-cyan-500/10 rounded-xl">
-                <Clock className="w-6 h-6 text-cyan-400" />
+              <div className="flex-1">
+                <div className="flex justify-between items-start mb-1">
+                  <span className="text-sm text-gray-400">Taxa de Conversão</span>
+                  <span className="text-2xl font-bold text-white">{stats.taxa_conversao}%</span>
+                </div>
+                <p className="text-xs text-gray-500">Cotações que viraram pedidos</p>
               </div>
             </div>
 
-            <div className="flex items-center justify-between p-4 bg-slate-800/30 rounded-xl">
-              <div>
-                <p className="text-slate-400 text-sm mb-1">Satisfação do Cliente</p>
-                <p className="text-2xl font-bold text-white">4.8/5</p>
-              </div>
-              <div className="p-3 bg-green-500/10 rounded-xl">
+            {/* Ticket Médio */}
+            <div className="flex items-start gap-4">
+              <div className="p-3 bg-green-500/10 rounded-lg">
                 <TrendingUp className="w-6 h-6 text-green-400" />
               </div>
+              <div className="flex-1">
+                <div className="flex justify-between items-start mb-1">
+                  <span className="text-sm text-gray-400">Ticket Médio</span>
+                  <span className="text-2xl font-bold text-white">
+                    {formatCurrency(stats.ticket_medio)}
+                  </span>
+                </div>
+                <p className="text-xs text-gray-500">Valor médio dos pedidos</p>
+              </div>
             </div>
 
-            <div className="flex items-center justify-between p-4 bg-slate-800/30 rounded-xl">
-              <div>
-                <p className="text-slate-400 text-sm mb-1">Valor Médio</p>
-                <p className="text-2xl font-bold text-white">R$ 12.5k</p>
+            {/* Valor Total Faturado */}
+            <div className="flex items-start gap-4">
+              <div className="p-3 bg-purple-500/10 rounded-lg">
+                <DollarSign className="w-6 h-6 text-purple-400" />
               </div>
-              <div className="p-3 bg-purple-500/10 rounded-xl">
-                <FileText className="w-6 h-6 text-purple-400" />
+              <div className="flex-1">
+                <div className="flex justify-between items-start mb-1">
+                  <span className="text-sm text-gray-400">Faturamento Total</span>
+                  <span className="text-2xl font-bold text-white">
+                    {formatCurrency(stats.valor_total_faturado)}
+                  </span>
+                </div>
+                <p className="text-xs text-gray-500">Soma de pedidos e serviços</p>
               </div>
             </div>
           </div>
         </div>
       </div>
     </div>
-  )
+  );
 }
