@@ -37,12 +37,14 @@ export default function Login({ onLogin, onAdminClick }: LoginProps) {
 
       const data = await response.json()
 
-      if (data.sucesso) {
+      // CORRIGIDO: Worker retorna "success" (inglês), não "sucesso" (português)
+      if (data.success) {
         // Salvar no localStorage
         localStorage.setItem('comlink_user', JSON.stringify(data.usuario))
         onLogin(data.usuario)
       } else {
-        setError(data.mensagem || 'COD, email ou senha inválidos')
+        // CORRIGIDO: Worker retorna "error" (inglês), não "mensagem" (português)
+        setError(data.error || 'COD, email ou senha inválidos')
       }
     } catch (err) {
       setError('Erro ao fazer login. Tente novamente.')
@@ -86,7 +88,7 @@ export default function Login({ onLogin, onAdminClick }: LoginProps) {
                   value={cod}
                   onChange={(e) => setCod(e.target.value)}
                   className="w-full pl-10 pr-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 transition-all"
-                  placeholder="jm"
+                  placeholder="JM234"
                   required
                 />
               </div>
