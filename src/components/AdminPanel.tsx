@@ -6,11 +6,11 @@ import {
 
 interface Usuario {
   id: number
+  empresa_id: number
   email: string
   nome_completo: string
   perfil: 'super_admin' | 'consultor'
   acesso_ia: number
-  ativo: number
   empresa_cod: string
   empresa_nome: string
 }
@@ -20,8 +20,6 @@ interface Empresa {
   cod: string
   razao_social: string
   cnpj: string
-  ativa: number
-  total_usuarios: number
 }
 
 interface AdminPanelProps {
@@ -44,11 +42,11 @@ export default function AdminPanel({ onClose, userToken }: AdminPanelProps) {
   const [newPassword, setNewPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   
-  // Estados de cadastro
+  // Estados de cadastro - ✅ CORRIGIDO: usando empresa_id
   const [showNewUserForm, setShowNewUserForm] = useState(false)
   const [showNewEmpresaForm, setShowNewEmpresaForm] = useState(false)
   const [newUser, setNewUser] = useState({
-    empresa_cod: '',
+    empresa_id: 0, // ✅ MUDOU de empresa_cod para empresa_id
     email: '',
     nome_completo: '',
     senha: '',
@@ -80,10 +78,12 @@ export default function AdminPanel({ onClose, userToken }: AdminPanelProps) {
       const usersData = await usersRes.json()
       const empresasData = await empresasRes.json()
       
-      setUsuarios(usersData)
-      setEmpresas(empresasData)
+      setUsuarios(Array.isArray(usersData) ? usersData : [])
+      setEmpresas(Array.isArray(empresasData) ? empresasData : [])
     } catch (error) {
       showMessage('error', 'Erro ao carregar dados')
+      setUsuarios([])
+      setEmpresas([])
     } finally {
       setLoading(false)
     }
@@ -108,22 +108,22 @@ export default function AdminPanel({ onClose, userToken }: AdminPanelProps) {
           'Authorization': `Bearer ${userToken}`
         },
         body: JSON.stringify({
+          empresa_id: editingUser.empresa_id,
           nome_completo: editingUser.nome_completo,
           email: editingUser.email,
           perfil: editingUser.perfil,
-          acesso_ia: editingUser.acesso_ia,
-          ativo: editingUser.ativo
+          acesso_ia: editingUser.acesso_ia
         })
       })
 
       const data = await response.json()
 
-      if (data.sucesso) {
+      if (data.success) {
         showMessage('success', 'Usuário atualizado com sucesso')
         setEditingUser(null)
         carregarDados()
       } else {
-        showMessage('error', data.mensagem || 'Erro ao atualizar usuário')
+        showMessage('error', data.error || 'Erro ao atualizar usuário')
       }
     } catch (error) {
       showMessage('error', 'Erro ao atualizar usuário')
@@ -153,13 +153,13 @@ export default function AdminPanel({ onClose, userToken }: AdminPanelProps) {
 
       const data = await response.json()
 
-      if (data.sucesso) {
+      if (data.success) {
         showMessage('success', 'Senha alterada com sucesso')
         setShowPasswordModal(false)
         setUserToChangePassword(null)
         setNewPassword('')
       } else {
-        showMessage('error', data.mensagem || 'Erro ao alterar senha')
+        showMessage('error', data.error || 'Erro ao alterar senha')
       }
     } catch (error) {
       showMessage('error', 'Erro ao alterar senha')
@@ -182,11 +182,11 @@ export default function AdminPanel({ onClose, userToken }: AdminPanelProps) {
 
       const data = await response.json()
 
-      if (data.sucesso) {
+      if (data.success) {
         showMessage('success', 'Usuário excluído com sucesso')
         carregarDados()
       } else {
-        showMessage('error', data.mensagem || 'Erro ao excluir usuário')
+        showMessage('error', data.error || 'Erro ao excluir usuário')
       }
     } catch (error) {
       showMessage('error', 'Erro ao excluir usuário')
@@ -196,29 +196,32 @@ export default function AdminPanel({ onClose, userToken }: AdminPanelProps) {
   }
 
   const handleCreateUser = async () => {
-    if (!newUser.empresa_cod || !newUser.email || !newUser.nome_completo || !newUser.senha) {
+    // ✅ VALIDAÇÃO CORRIGIDA: verifica empresa_id ao invés de empresa_cod
+    if (!newUser.empresa_id || !newUser.email || !newUser.nome_completo || !newUser.senha) {
       showMessage('error', 'Preencha todos os campos obrigatórios')
       return
     }
 
     setLoading(true)
     try {
+      console.log('📤 Enviando novo usuário:', newUser)
+      
       const response = await fetch(`${API_URL}/admin/usuarios`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${userToken}`
         },
-        body: JSON.stringify(newUser)
+        body: JSON.stringify(newUser) // ✅ Agora envia empresa_id correto
       })
 
       const data = await response.json()
 
-      if (data.sucesso) {
+      if (data.success) {
         showMessage('success', 'Usuário cadastrado com sucesso')
         setShowNewUserForm(false)
         setNewUser({
-          empresa_cod: '',
+          empresa_id: 0,
           email: '',
           nome_completo: '',
           senha: '',
@@ -227,9 +230,10 @@ export default function AdminPanel({ onClose, userToken }: AdminPanelProps) {
         })
         carregarDados()
       } else {
-        showMessage('error', data.mensagem || 'Erro ao cadastrar usuário')
+        showMessage('error', data.error || 'Erro ao cadastrar usuário')
       }
     } catch (error) {
+      console.error('❌ Erro ao cadastrar:', error)
       showMessage('error', 'Erro ao cadastrar usuário')
     } finally {
       setLoading(false)
@@ -257,13 +261,13 @@ export default function AdminPanel({ onClose, userToken }: AdminPanelProps) {
 
       const data = await response.json()
 
-      if (data.sucesso) {
+      if (data.success) {
         showMessage('success', 'Empresa cadastrada com sucesso')
         setShowNewEmpresaForm(false)
         setNewEmpresa({ cod: '', razao_social: '', cnpj: '' })
         carregarDados()
       } else {
-        showMessage('error', data.mensagem || 'Erro ao cadastrar empresa')
+        showMessage('error', data.error || 'Erro ao cadastrar empresa')
       }
     } catch (error) {
       showMessage('error', 'Erro ao cadastrar empresa')
@@ -404,7 +408,7 @@ export default function AdminPanel({ onClose, userToken }: AdminPanelProps) {
                                 placeholder="Email"
                               />
                             </div>
-                            <div className="grid grid-cols-3 gap-4">
+                            <div className="grid grid-cols-2 gap-4">
                               <select
                                 value={editingUser.perfil}
                                 onChange={(e) => setEditingUser({ ...editingUser, perfil: e.target.value as 'super_admin' | 'consultor' })}
@@ -421,15 +425,6 @@ export default function AdminPanel({ onClose, userToken }: AdminPanelProps) {
                                   className="w-4 h-4"
                                 />
                                 Acesso IA
-                              </label>
-                              <label className="flex items-center gap-2 text-white">
-                                <input
-                                  type="checkbox"
-                                  checked={editingUser.ativo === 1}
-                                  onChange={(e) => setEditingUser({ ...editingUser, ativo: e.target.checked ? 1 : 0 })}
-                                  className="w-4 h-4"
-                                />
-                                Ativo
                               </label>
                             </div>
                             <div className="flex gap-2">
@@ -463,9 +458,6 @@ export default function AdminPanel({ onClose, userToken }: AdminPanelProps) {
                                 </span>
                                 {user.acesso_ia === 1 && (
                                   <span className="px-2 py-1 bg-cyan-500/20 text-cyan-300 rounded text-xs">IA</span>
-                                )}
-                                {user.ativo === 0 && (
-                                  <span className="px-2 py-1 bg-red-500/20 text-red-300 rounded text-xs">Inativo</span>
                                 )}
                               </div>
                               <p className="text-slate-400 text-sm mt-1">{user.email}</p>
@@ -536,17 +528,11 @@ export default function AdminPanel({ onClose, userToken }: AdminPanelProps) {
                           <span className="px-2 py-1 bg-slate-700 text-slate-300 rounded text-xs">
                             COD: {empresa.cod}
                           </span>
-                          {empresa.ativa === 1 ? (
-                            <span className="px-2 py-1 bg-green-500/20 text-green-300 rounded text-xs">Ativa</span>
-                          ) : (
-                            <span className="px-2 py-1 bg-red-500/20 text-red-300 rounded text-xs">Inativa</span>
-                          )}
                         </div>
                         <div className="flex gap-4 mt-2">
                           {empresa.cnpj && (
                             <p className="text-slate-400 text-sm">CNPJ: {empresa.cnpj}</p>
                           )}
-                          <p className="text-slate-400 text-sm">{empresa.total_usuarios} usuários</p>
                         </div>
                       </div>
                     </div>
@@ -605,42 +591,53 @@ export default function AdminPanel({ onClose, userToken }: AdminPanelProps) {
         </div>
       )}
 
-      {/* Modal: Novo Usuário */}
+      {/* Modal: Novo Usuário - ✅ CORRIGIDO */}
       {showNewUserForm && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[60] p-4">
           <div className="bg-slate-800 border border-slate-700 rounded-xl p-6 max-w-md w-full">
             <h3 className="text-xl font-bold text-white mb-4">Novo Usuário</h3>
             <div className="space-y-4">
-              <select
-                value={newUser.empresa_cod}
-                onChange={(e) => setNewUser({ ...newUser, empresa_cod: e.target.value })}
-                className="w-full px-4 py-3 bg-slate-900 border border-slate-600 rounded-lg text-white"
-              >
-                <option value="">Selecione a empresa</option>
-                {empresas.map(emp => (
-                  <option key={emp.id} value={emp.cod}>{emp.razao_social}</option>
-                ))}
-              </select>
+              {/* ✅ CORRIGIDO: Select agora salva empresa_id */}
+              <div>
+                <label className="block text-sm text-slate-400 mb-2">Empresa *</label>
+                <select
+                  value={newUser.empresa_id}
+                  onChange={(e) => {
+                    const empresaId = parseInt(e.target.value)
+                    console.log('✅ Empresa selecionada - ID:', empresaId)
+                    setNewUser({ ...newUser, empresa_id: empresaId })
+                  }}
+                  className="w-full px-4 py-3 bg-slate-900 border border-slate-600 rounded-lg text-white"
+                >
+                  <option value={0}>Selecione a empresa</option>
+                  {empresas.map(emp => (
+                    <option key={emp.id} value={emp.id}>
+                      {emp.razao_social} (COD: {emp.cod})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              
               <input
                 type="text"
                 value={newUser.nome_completo}
                 onChange={(e) => setNewUser({ ...newUser, nome_completo: e.target.value })}
-                placeholder="Nome completo"
-                className="w-full px-4 py-3 bg-slate-900 border border-slate-600 rounded-lg text-white"
+                placeholder="Nome completo *"
+                className="w-full px-4 py-3 bg-slate-900 border border-slate-600 rounded-lg text-white placeholder-slate-500"
               />
               <input
                 type="email"
                 value={newUser.email}
                 onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
-                placeholder="Email"
-                className="w-full px-4 py-3 bg-slate-900 border border-slate-600 rounded-lg text-white"
+                placeholder="Email *"
+                className="w-full px-4 py-3 bg-slate-900 border border-slate-600 rounded-lg text-white placeholder-slate-500"
               />
               <input
                 type="password"
                 value={newUser.senha}
                 onChange={(e) => setNewUser({ ...newUser, senha: e.target.value })}
-                placeholder="Senha (mínimo 6 caracteres)"
-                className="w-full px-4 py-3 bg-slate-900 border border-slate-600 rounded-lg text-white"
+                placeholder="Senha (mínimo 6 caracteres) *"
+                className="w-full px-4 py-3 bg-slate-900 border border-slate-600 rounded-lg text-white placeholder-slate-500"
               />
               <select
                 value={newUser.perfil}
@@ -650,7 +647,7 @@ export default function AdminPanel({ onClose, userToken }: AdminPanelProps) {
                 <option value="consultor">Consultor</option>
                 <option value="super_admin">Super Admin</option>
               </select>
-              <label className="flex items-center gap-2 text-white">
+              <label className="flex items-center gap-2 text-white cursor-pointer">
                 <input
                   type="checkbox"
                   checked={newUser.acesso_ia}
@@ -664,15 +661,15 @@ export default function AdminPanel({ onClose, userToken }: AdminPanelProps) {
               <button
                 onClick={handleCreateUser}
                 disabled={loading}
-                className="flex-1 px-4 py-3 bg-cyan-500 text-white rounded-lg hover:bg-cyan-600 disabled:opacity-50"
+                className="flex-1 px-4 py-3 bg-cyan-500 text-white rounded-lg hover:bg-cyan-600 disabled:opacity-50 flex items-center justify-center gap-2"
               >
-                Cadastrar
+                {loading ? 'Cadastrando...' : 'Cadastrar'}
               </button>
               <button
                 onClick={() => {
                   setShowNewUserForm(false)
                   setNewUser({
-                    empresa_cod: '',
+                    empresa_id: 0,
                     email: '',
                     nome_completo: '',
                     senha: '',
@@ -698,23 +695,23 @@ export default function AdminPanel({ onClose, userToken }: AdminPanelProps) {
               <input
                 type="text"
                 value={newEmpresa.cod}
-                onChange={(e) => setNewEmpresa({ ...newEmpresa, cod: e.target.value })}
-                placeholder="COD (ex: JM234)"
-                className="w-full px-4 py-3 bg-slate-900 border border-slate-600 rounded-lg text-white uppercase"
+                onChange={(e) => setNewEmpresa({ ...newEmpresa, cod: e.target.value.toUpperCase() })}
+                placeholder="COD (ex: JM234) *"
+                className="w-full px-4 py-3 bg-slate-900 border border-slate-600 rounded-lg text-white uppercase placeholder-slate-500"
               />
               <input
                 type="text"
                 value={newEmpresa.razao_social}
                 onChange={(e) => setNewEmpresa({ ...newEmpresa, razao_social: e.target.value })}
-                placeholder="Razão Social"
-                className="w-full px-4 py-3 bg-slate-900 border border-slate-600 rounded-lg text-white"
+                placeholder="Razão Social *"
+                className="w-full px-4 py-3 bg-slate-900 border border-slate-600 rounded-lg text-white placeholder-slate-500"
               />
               <input
                 type="text"
                 value={newEmpresa.cnpj}
                 onChange={(e) => setNewEmpresa({ ...newEmpresa, cnpj: e.target.value })}
                 placeholder="CNPJ (opcional)"
-                className="w-full px-4 py-3 bg-slate-900 border border-slate-600 rounded-lg text-white"
+                className="w-full px-4 py-3 bg-slate-900 border border-slate-600 rounded-lg text-white placeholder-slate-500"
               />
             </div>
             <div className="flex gap-3 mt-6">
@@ -723,7 +720,7 @@ export default function AdminPanel({ onClose, userToken }: AdminPanelProps) {
                 disabled={loading}
                 className="flex-1 px-4 py-3 bg-cyan-500 text-white rounded-lg hover:bg-cyan-600 disabled:opacity-50"
               >
-                Cadastrar
+                {loading ? 'Cadastrando...' : 'Cadastrar'}
               </button>
               <button
                 onClick={() => {
