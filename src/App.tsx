@@ -39,22 +39,26 @@ function App() {
 
   // Verificar login ao carregar
   useEffect(() => {
-    const savedUser = localStorage.getItem('user')
+    const savedUser = localStorage.getItem('comlink_user')
     if (savedUser) {
       try {
         const user = JSON.parse(savedUser)
         setUserData(user)
         setIsLoggedIn(true)
         
+        console.log('✅ Usuário carregado:', user)
+        console.log('📦 empresa_cod:', user.empresa_cod)
+        
         // Se for super_admin, carregar lista de empresas
         if (user.perfil === 'super_admin') {
           carregarEmpresas()
         } else {
-          // Se for consultor, já tem empresa definida
-          setEmpresaSelecionada(user.empresa?.cod || '')
+          // ✅ CORRIGIDO: Acessar empresa_cod diretamente (não user.empresa.cod)
+          setEmpresaSelecionada(user.empresa_cod || '')
+          console.log('🏢 Empresa selecionada:', user.empresa_cod)
         }
       } catch (error) {
-        localStorage.removeItem('user')
+        localStorage.removeItem('comlink_user')
       }
     }
   }, [])
@@ -89,11 +93,16 @@ function App() {
     setUserData(user)
     setIsLoggedIn(true)
     
+    console.log('✅ Login realizado:', user)
+    console.log('📦 empresa_cod no login:', user.empresa_cod)
+    
     // Se for super_admin, carregar empresas
     if (user.perfil === 'super_admin') {
       carregarEmpresas()
     } else {
-      setEmpresaSelecionada(user.empresa?.cod || '')
+      // ✅ CORRIGIDO: Acessar empresa_cod diretamente
+      setEmpresaSelecionada(user.empresa_cod || '')
+      console.log('🏢 Empresa definida:', user.empresa_cod)
     }
   }
 
@@ -116,19 +125,24 @@ function App() {
     setMessages(prev => [...prev, { role: 'user', content: userMessage, type: 'text' }])
     setLoading(true)
 
+    console.log('📤 Enviando mensagem para IA...')
+    console.log('🏢 empresa_cod enviado:', empresaSelecionada)
+
     try {
       const response = await fetch(`${API_URL}/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           message: userMessage,
-          empresa_cod: empresaSelecionada  // ✅ NOVO: Passar empresa no contexto
+          empresaCod: empresaSelecionada  // ✅ Passar empresa no contexto
         })
       })
 
       if (!response.ok) throw new Error('Erro na API')
 
       const data = await response.json()
+      console.log('📥 Resposta da IA:', data)
+      
       const assistantMessage = data.message || data.response || 'Sem resposta'
       
       if (data.type === 'chart' && data.chartData) {
@@ -146,7 +160,7 @@ function App() {
         }])
       }
     } catch (error) {
-      console.error('Erro:', error)
+      console.error('❌ Erro ao enviar mensagem:', error)
       setMessages(prev => [...prev, { 
         role: 'assistant', 
         content: 'Desculpe, ocorreu um erro ao processar sua mensagem. Tente novamente.',
@@ -166,13 +180,13 @@ function App() {
   }
 
   if (!isLoggedIn) {
-    return <Login onLogin={handleLogin} />
+    return <Login onLogin={handleLogin} onAdminClick={() => setCurrentPage('admin')} />
   }
 
-  // ✅ NOVO: Nome da empresa selecionada
+  // ✅ CORRIGIDO: Nome da empresa pegando do lugar certo
   const empresaNome = isSuperAdmin 
     ? empresas.find(e => e.cod === empresaSelecionada)?.razao_social || 'Selecione uma empresa'
-    : userData?.fornecedor || userData?.empresa?.nome || 'JM TECNOLOGIA'
+    : userData?.empresa_nome || 'JM TECNOLOGIA'  // ✅ empresa_nome (não empresa.nome)
 
   return (
     <div className="flex h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 relative overflow-hidden">
@@ -203,7 +217,7 @@ function App() {
               </div>
             </div>
             <div className="pl-1">
-              <p className="text-xs text-slate-500 mb-1">{userData?.nome || 'Usuário'}</p>
+              <p className="text-xs text-slate-500 mb-1">{userData?.nome_completo || 'Usuário'}</p>
               {/* ✅ NOVO: Mostrar perfil */}
               <div className="flex items-center gap-2 mb-2">
                 <span className={`px-2 py-1 rounded text-xs font-semibold ${
@@ -230,7 +244,10 @@ function App() {
               </label>
               <select
                 value={empresaSelecionada}
-                onChange={(e) => setEmpresaSelecionada(e.target.value)}
+                onChange={(e) => {
+                  setEmpresaSelecionada(e.target.value)
+                  console.log('🏢 Empresa mudada para:', e.target.value)
+                }}
                 className="w-full mt-2 px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:border-cyan-500"
               >
                 {empresas.map(emp => (
@@ -322,7 +339,7 @@ function App() {
             </div>
 
             {/* ✅ NOVO: Indicador de empresa ativa no header */}
-            {isSuperAdmin && empresaSelecionada && (
+            {empresaSelecionada && (
               <div className="flex items-center gap-2 px-4 py-2 bg-slate-800/50 rounded-xl border border-slate-700/50">
                 <Building2 className="w-4 h-4 text-cyan-400" />
                 <span className="text-sm text-slate-300">
