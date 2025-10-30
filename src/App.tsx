@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { MessageCircle, BarChart3, Shield, Menu, X, LogOut, Building2 } from 'lucide-react'
+import { MessageCircle, BarChart3, Shield, Menu, X, LogOut, Building2, ChevronDown } from 'lucide-react'
 import Dashboard from './components/Dashboard'
 import Analytics from './components/Analytics'
 import AdminPanel from './components/AdminPanel'
@@ -18,6 +18,7 @@ interface Empresa {
   id: number
   cod: string
   razao_social: string
+  ativo?: number
 }
 
 function App() {
@@ -33,6 +34,7 @@ function App() {
 
   const [empresas, setEmpresas] = useState<Empresa[]>([])
   const [empresaSelecionada, setEmpresaSelecionada] = useState<string>('')
+  const [mostrarDropdown, setMostrarDropdown] = useState(false) // ✅ NOVO
 
   const isSuperAdmin = userData?.perfil === 'super_admin'
 
@@ -43,7 +45,7 @@ function App() {
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
     console.log('🏢 EMPRESA SELECIONADA MUDOU!')
     console.log('📦 Valor atual:', empresaSelecionada)
-    console.log('✅ Válido?', empresaSelecionada !== undefined && empresaSelecionada !== null ? 'SIM' : '❌ NÃO - VAZIO!')
+    console.log('✅ Válido?', empresaSelecionada !== undefined && empresaSelecionada !== null && empresaSelecionada !== '' ? 'SIM' : '❌ NÃO - VAZIO!')
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
   }, [empresaSelecionada])
 
@@ -70,6 +72,7 @@ function App() {
         if (user.perfil === 'super_admin') {
           console.log('👑 Super Admin detectado - carregando empresas...')
           carregarEmpresas()
+          // ✅ NÃO seleciona automaticamente - aguarda escolha manual
         } else {
           // ✅ CORREÇÃO: Garantir que COD seja string, mesmo se for "0"
           const empresaCod = user.empresa_cod !== undefined && user.empresa_cod !== null ? String(user.empresa_cod) : ''
@@ -110,9 +113,9 @@ function App() {
       console.log('✅ Empresas carregadas:', data)
       setEmpresas(data)
       
+      // ✅ NÃO seleciona automaticamente - usuário deve escolher
       if (data.length > 0) {
-        console.log('🎯 Selecionando primeira empresa:', data[0].cod)
-        setEmpresaSelecionada(String(data[0].cod))
+        console.log('ℹ️ Aguardando seleção manual de empresa...')
       }
     } catch (error) {
       console.error('❌ Erro ao carregar empresas:', error)
@@ -160,6 +163,7 @@ function App() {
     setMessages([])
     setCurrentPage('dashboard')
     setEmpresaSelecionada('')
+    setEmpresas([])
   }
 
   const sendMessage = async () => {
@@ -170,17 +174,25 @@ function App() {
     setMessages(prev => [...prev, { role: 'user', content: userMessage, type: 'text' }])
     setLoading(true)
 
+    // ✅ BUSCAR NOME DA EMPRESA
+    const empresaNome = isSuperAdmin && empresaSelecionada
+      ? (Array.isArray(empresas) ? empresas.find(e => e.cod === empresaSelecionada)?.razao_social : null) || 'Fornecedor'
+      : userData?.empresa_nome || 'Fornecedor'
+
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
     console.log('📤 ENVIANDO MENSAGEM PARA IA')
     console.log('💬 Mensagem:', userMessage)
-    console.log('🏢 empresaCod enviado:', empresaSelecionada)
+    console.log('🏢 empresaCod:', empresaSelecionada)
+    console.log('🏷️ empresaNome:', empresaNome) // ✅ NOVO
     console.log('❓ empresaCod vazio?', empresaSelecionada === '' ? '⚠️ SIM' : '✅ NÃO')
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
 
     try {
+      // ✅ PAYLOAD COMPLETO COM COD E NOME
       const payload = { 
         message: userMessage,
-        empresaCod: empresaSelecionada
+        empresaCod: empresaSelecionada,
+        empresaNome: empresaNome // ✅ NOVO
       }
       
       console.log('📦 Payload completo:', JSON.stringify(payload, null, 2))
@@ -244,7 +256,9 @@ function App() {
 
   // ✅ CORREÇÃO: Validar se empresas é array antes de usar .find()
   const empresaNome = isSuperAdmin 
-    ? (Array.isArray(empresas) ? empresas.find(e => e.cod === empresaSelecionada)?.razao_social : null) || 'Selecione uma empresa'
+    ? empresaSelecionada
+      ? (Array.isArray(empresas) ? empresas.find(e => e.cod === empresaSelecionada)?.razao_social : null) || 'Empresa não encontrada'
+      : 'Selecione uma empresa'
     : userData?.empresa_nome || 'JM TECNOLOGIA'
 
   console.log('🏷️ Nome da empresa exibido:', empresaNome)
@@ -256,8 +270,10 @@ function App() {
         <div className="absolute bottom-0 left-0 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl" />
       </div>
 
+      {/* SIDEBAR */}
       <div className={`${sidebarOpen ? 'w-72' : 'w-0'} transition-all duration-300 bg-slate-900/70 backdrop-blur-2xl border-r border-slate-800/50 overflow-hidden relative z-10`}>
         <div className="p-6">
+          {/* CARD DO USUÁRIO */}
           <div className="mb-8 p-5 bg-gradient-to-br from-slate-800/50 to-slate-800/30 backdrop-blur-xl rounded-2xl border border-slate-700/50">
             <div className="flex items-center gap-3 mb-3">
               <div className="w-12 h-12 bg-gradient-to-br from-cyan-500 via-blue-500 to-purple-500 rounded-xl flex items-center justify-center shadow-lg">
@@ -292,32 +308,66 @@ function App() {
             </div>
           </div>
 
+          {/* ✅ DROPDOWN DE SELEÇÃO DE EMPRESA (SUPER ADMIN) */}
           {isSuperAdmin && Array.isArray(empresas) && empresas.length > 0 && (
-            <div className="mb-6 p-4 bg-slate-800/50 rounded-xl border border-slate-700/50">
-              <label className="text-xs text-slate-400 font-semibold mb-2 flex items-center gap-2">
+            <div className="mb-6 relative">
+              <label className="block text-xs text-slate-400 font-semibold mb-2 flex items-center gap-2">
                 <Building2 className="w-4 h-4" />
                 Empresa Ativa
               </label>
-              <select
-                value={empresaSelecionada}
-                onChange={(e) => {
-                  console.log('🔄 Mudando empresa para:', e.target.value)
-                  setEmpresaSelecionada(e.target.value)
-                }}
-                className="w-full mt-2 px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:border-cyan-500"
+              
+              {/* Botão do dropdown */}
+              <button
+                onClick={() => setMostrarDropdown(!mostrarDropdown)}
+                className="w-full px-4 py-3 bg-slate-800/80 border border-slate-700 rounded-xl text-white text-sm focus:outline-none focus:border-cyan-500 hover:bg-slate-800 transition-colors flex items-center justify-between"
               >
-                {empresas.map(emp => (
-                  <option key={emp.id} value={emp.cod}>
-                    {emp.razao_social} ({emp.cod})
-                  </option>
-                ))}
-              </select>
-              <p className="text-xs text-slate-500 mt-2">
-                Métricas e dados desta empresa
-              </p>
+                <span className="truncate">
+                  {empresaSelecionada
+                    ? empresas.find(e => e.cod === empresaSelecionada)?.razao_social || 'Selecione...'
+                    : 'Selecione uma empresa'}
+                </span>
+                <ChevronDown className={`w-4 h-4 transition-transform ${mostrarDropdown ? 'rotate-180' : ''}`} />
+              </button>
+
+              {/* Lista de empresas */}
+              {mostrarDropdown && (
+                <div className="absolute top-full left-0 right-0 mt-2 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl max-h-60 overflow-y-auto z-50">
+                  {empresas.map(emp => (
+                    <button
+                      key={emp.id}
+                      onClick={() => {
+                        console.log('🔄 Empresa selecionada:', emp.cod, '-', emp.razao_social)
+                        setEmpresaSelecionada(emp.cod)
+                        setMostrarDropdown(false)
+                      }}
+                      className={`w-full px-4 py-3 text-left hover:bg-slate-700 transition-colors border-b border-slate-700/50 last:border-0 ${
+                        empresaSelecionada === emp.cod ? 'bg-cyan-500/20 text-cyan-300' : 'text-white'
+                      }`}
+                    >
+                      <div className="text-sm font-medium">{emp.razao_social}</div>
+                      <div className="text-xs text-slate-400 mt-1">COD: {emp.cod}</div>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {empresaSelecionada && (
+                <p className="text-xs text-slate-500 mt-2 flex items-center gap-2">
+                  <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                  Métricas e dados desta empresa
+                </p>
+              )}
+
+              {!empresaSelecionada && (
+                <p className="text-xs text-orange-400 mt-2 flex items-center gap-2">
+                  <span className="w-2 h-2 bg-orange-500 rounded-full animate-pulse" />
+                  Selecione uma empresa para visualizar
+                </p>
+              )}
             </div>
           )}
 
+          {/* MENU DE NAVEGAÇÃO */}
           <nav className="space-y-2 mb-8">
             <button
               onClick={() => setCurrentPage('dashboard')}
@@ -368,6 +418,7 @@ function App() {
         </div>
       </div>
 
+      {/* CONTEÚDO PRINCIPAL */}
       <div className="flex-1 flex flex-col relative z-10">
         <header className="bg-slate-900/70 backdrop-blur-2xl border-b border-slate-800/50 px-6 py-4 shadow-lg">
           <div className="flex items-center justify-between">
@@ -389,7 +440,7 @@ function App() {
               </div>
             </div>
 
-            {empresaSelecionada !== '' && (
+            {empresaSelecionada && (
               <div className="flex items-center gap-2 px-4 py-2 bg-slate-800/50 rounded-xl border border-slate-700/50">
                 <Building2 className="w-4 h-4 text-cyan-400" />
                 <span className="text-sm text-slate-300">
