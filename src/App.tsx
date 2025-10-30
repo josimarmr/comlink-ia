@@ -31,51 +31,77 @@ function App() {
   const chatEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  // ✅ NOVO: Seletor de empresa para super_admin
   const [empresas, setEmpresas] = useState<Empresa[]>([])
   const [empresaSelecionada, setEmpresaSelecionada] = useState<string>('')
 
   const isSuperAdmin = userData?.perfil === 'super_admin'
 
+  // ===================================
+  // 🔍 DEBUG: MONITORAR empresaSelecionada
+  // ===================================
+  useEffect(() => {
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    console.log('🏢 EMPRESA SELECIONADA MUDOU!')
+    console.log('📦 Valor atual:', empresaSelecionada)
+    console.log('✅ Válido?', empresaSelecionada ? 'SIM' : '❌ NÃO - VAZIO!')
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+  }, [empresaSelecionada])
+
   // Verificar login ao carregar
   useEffect(() => {
+    console.log('🔄 Verificando login salvo...')
     const savedUser = localStorage.getItem('comlink_user')
+    
     if (savedUser) {
       try {
         const user = JSON.parse(savedUser)
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+        console.log('✅ USUÁRIO ENCONTRADO NO LOCALSTORAGE')
+        console.log('📦 Dados completos:', user)
+        console.log('👤 Nome:', user.nome_completo)
+        console.log('🏢 Empresa COD:', user.empresa_cod)
+        console.log('🏢 Empresa Nome:', user.empresa_nome)
+        console.log('👔 Perfil:', user.perfil)
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+        
         setUserData(user)
         setIsLoggedIn(true)
         
-        console.log('✅ Usuário carregado:', user)
-        console.log('📦 empresa_cod:', user.empresa_cod)
-        
-        // Se for super_admin, carregar lista de empresas
         if (user.perfil === 'super_admin') {
+          console.log('👑 Super Admin detectado - carregando empresas...')
           carregarEmpresas()
         } else {
-          // ✅ CORRIGIDO: Acessar empresa_cod diretamente (não user.empresa.cod)
-          setEmpresaSelecionada(user.empresa_cod || '')
-          console.log('🏢 Empresa selecionada:', user.empresa_cod)
+          const empresaCod = user.empresa_cod || ''
+          console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+          console.log('🎯 DEFININDO EMPRESA SELECIONADA')
+          console.log('📥 Valor recebido:', user.empresa_cod)
+          console.log('✅ Valor definido:', empresaCod)
+          console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+          setEmpresaSelecionada(empresaCod)
         }
       } catch (error) {
+        console.error('❌ Erro ao carregar usuário:', error)
         localStorage.removeItem('comlink_user')
       }
+    } else {
+      console.log('⚠️ Nenhum usuário salvo no localStorage')
     }
   }, [])
 
-  // ✅ NOVO: Carregar empresas para super_admin
   const carregarEmpresas = async () => {
     try {
+      console.log('📡 Carregando lista de empresas...')
       const response = await fetch(`${API_URL}/admin/empresas`)
       const data = await response.json()
+      console.log('✅ Empresas carregadas:', data)
       setEmpresas(data)
       
-      // Selecionar primeira empresa por padrão
       if (data.length > 0) {
+        console.log('🎯 Selecionando primeira empresa:', data[0].cod)
         setEmpresaSelecionada(data[0].cod)
       }
     } catch (error) {
-      console.error('Erro ao carregar empresas:', error)
+      console.error('❌ Erro ao carregar empresas:', error)
     }
   }
 
@@ -90,24 +116,27 @@ function App() {
   }, [currentPage])
 
   const handleLogin = (user: any) => {
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    console.log('🔐 LOGIN REALIZADO COM SUCESSO!')
+    console.log('📦 Dados do usuário:', user)
+    console.log('🏢 empresa_cod:', user.empresa_cod)
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    
     setUserData(user)
     setIsLoggedIn(true)
     
-    console.log('✅ Login realizado:', user)
-    console.log('📦 empresa_cod no login:', user.empresa_cod)
-    
-    // Se for super_admin, carregar empresas
     if (user.perfil === 'super_admin') {
+      console.log('👑 Super Admin - carregando empresas...')
       carregarEmpresas()
     } else {
-      // ✅ CORRIGIDO: Acessar empresa_cod diretamente
-      setEmpresaSelecionada(user.empresa_cod || '')
-      console.log('🏢 Empresa definida:', user.empresa_cod)
+      const empresaCod = user.empresa_cod || ''
+      console.log('🎯 Definindo empresa:', empresaCod)
+      setEmpresaSelecionada(empresaCod)
     }
   }
 
-  // ✅ CORRIGIDO: Logout funcionando
   const handleLogout = () => {
+    console.log('👋 Logout realizado')
     localStorage.removeItem('user')
     localStorage.removeItem('comlink_user')
     setUserData(null)
@@ -125,23 +154,37 @@ function App() {
     setMessages(prev => [...prev, { role: 'user', content: userMessage, type: 'text' }])
     setLoading(true)
 
-    console.log('📤 Enviando mensagem para IA...')
-    console.log('🏢 empresa_cod enviado:', empresaSelecionada)
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    console.log('📤 ENVIANDO MENSAGEM PARA IA')
+    console.log('💬 Mensagem:', userMessage)
+    console.log('🏢 empresaCod enviado:', empresaSelecionada)
+    console.log('❓ empresaCod está vazio?', !empresaSelecionada ? '⚠️ SIM - IA NÃO TERÁ CONTEXTO!' : '✅ NÃO - OK!')
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
 
     try {
+      const payload = { 
+        message: userMessage,
+        empresaCod: empresaSelecionada
+      }
+      
+      console.log('📦 Payload completo:', JSON.stringify(payload, null, 2))
+
       const response = await fetch(`${API_URL}/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          message: userMessage,
-          empresaCod: empresaSelecionada  // ✅ Passar empresa no contexto
-        })
+        body: JSON.stringify(payload)
       })
 
-      if (!response.ok) throw new Error('Erro na API')
+      if (!response.ok) {
+        console.error('❌ Erro HTTP:', response.status, response.statusText)
+        throw new Error('Erro na API')
+      }
 
       const data = await response.json()
-      console.log('📥 Resposta da IA:', data)
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+      console.log('📥 RESPOSTA DA IA RECEBIDA')
+      console.log('📦 Dados:', data)
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
       
       const assistantMessage = data.message || data.response || 'Sem resposta'
       
@@ -160,7 +203,7 @@ function App() {
         }])
       }
     } catch (error) {
-      console.error('❌ Erro ao enviar mensagem:', error)
+      console.error('❌ ERRO AO ENVIAR MENSAGEM:', error)
       setMessages(prev => [...prev, { 
         role: 'assistant', 
         content: 'Desculpe, ocorreu um erro ao processar sua mensagem. Tente novamente.',
@@ -183,23 +226,21 @@ function App() {
     return <Login onLogin={handleLogin} onAdminClick={() => setCurrentPage('admin')} />
   }
 
-  // ✅ CORRIGIDO: Nome da empresa pegando do lugar certo
   const empresaNome = isSuperAdmin 
     ? empresas.find(e => e.cod === empresaSelecionada)?.razao_social || 'Selecione uma empresa'
-    : userData?.empresa_nome || 'JM TECNOLOGIA'  // ✅ empresa_nome (não empresa.nome)
+    : userData?.empresa_nome || 'JM TECNOLOGIA'
+
+  console.log('🏷️ Nome da empresa exibido:', empresaNome)
 
   return (
     <div className="flex h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 relative overflow-hidden">
-      {/* Background Effects */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-0 right-0 w-96 h-96 bg-cyan-500/5 rounded-full blur-3xl" />
         <div className="absolute bottom-0 left-0 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl" />
       </div>
 
-      {/* Sidebar */}
       <div className={`${sidebarOpen ? 'w-72' : 'w-0'} transition-all duration-300 bg-slate-900/70 backdrop-blur-2xl border-r border-slate-800/50 overflow-hidden relative z-10`}>
         <div className="p-6">
-          {/* Fornecedor Info */}
           <div className="mb-8 p-5 bg-gradient-to-br from-slate-800/50 to-slate-800/30 backdrop-blur-xl rounded-2xl border border-slate-700/50">
             <div className="flex items-center gap-3 mb-3">
               <div className="w-12 h-12 bg-gradient-to-br from-cyan-500 via-blue-500 to-purple-500 rounded-xl flex items-center justify-center shadow-lg">
@@ -218,7 +259,6 @@ function App() {
             </div>
             <div className="pl-1">
               <p className="text-xs text-slate-500 mb-1">{userData?.nome_completo || 'Usuário'}</p>
-              {/* ✅ NOVO: Mostrar perfil */}
               <div className="flex items-center gap-2 mb-2">
                 <span className={`px-2 py-1 rounded text-xs font-semibold ${
                   userData?.perfil === 'super_admin' 
@@ -235,7 +275,6 @@ function App() {
             </div>
           </div>
 
-          {/* ✅ NOVO: Seletor de Empresa (só para super_admin) */}
           {isSuperAdmin && (
             <div className="mb-6 p-4 bg-slate-800/50 rounded-xl border border-slate-700/50">
               <label className="text-xs text-slate-400 font-semibold mb-2 flex items-center gap-2">
@@ -245,8 +284,8 @@ function App() {
               <select
                 value={empresaSelecionada}
                 onChange={(e) => {
+                  console.log('🔄 Mudando empresa para:', e.target.value)
                   setEmpresaSelecionada(e.target.value)
-                  console.log('🏢 Empresa mudada para:', e.target.value)
                 }}
                 className="w-full mt-2 px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:border-cyan-500"
               >
@@ -262,7 +301,6 @@ function App() {
             </div>
           )}
 
-          {/* Navigation */}
           <nav className="space-y-2 mb-8">
             <button
               onClick={() => setCurrentPage('dashboard')}
@@ -288,7 +326,6 @@ function App() {
               <span className="font-semibold">Analytics</span>
             </button>
 
-            {/* ✅ Botão Admin só para super_admin */}
             {isSuperAdmin && (
               <button
                 onClick={() => setCurrentPage('admin')}
@@ -304,7 +341,6 @@ function App() {
             )}
           </nav>
 
-          {/* Logout Button */}
           <button
             onClick={handleLogout}
             className="w-full flex items-center gap-3 px-4 py-4 rounded-2xl text-red-400 hover:bg-red-500/10 transition-all border border-red-500/20 hover:border-red-500/40 group"
@@ -315,9 +351,7 @@ function App() {
         </div>
       </div>
 
-      {/* Main Content */}
       <div className="flex-1 flex flex-col relative z-10">
-        {/* Header */}
         <header className="bg-slate-900/70 backdrop-blur-2xl border-b border-slate-800/50 px-6 py-4 shadow-lg">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
@@ -338,7 +372,6 @@ function App() {
               </div>
             </div>
 
-            {/* ✅ NOVO: Indicador de empresa ativa no header */}
             {empresaSelecionada && (
               <div className="flex items-center gap-2 px-4 py-2 bg-slate-800/50 rounded-xl border border-slate-700/50">
                 <Building2 className="w-4 h-4 text-cyan-400" />
@@ -363,7 +396,15 @@ function App() {
               inputRef={inputRef}
             />
           )}
-          {currentPage === 'analytics' && <Analytics empresaCod={empresaSelecionada} />}
+          {currentPage === 'analytics' && (
+            <>
+              {console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')}
+              {console.log('📊 RENDERIZANDO ANALYTICS')}
+              {console.log('🏢 empresaCod passado:', empresaSelecionada)}
+              {console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')}
+              <Analytics empresaCod={empresaSelecionada} />
+            </>
+          )}
           {currentPage === 'admin' && isSuperAdmin && (
             <AdminPanel onClose={() => setCurrentPage('dashboard')} />
           )}
