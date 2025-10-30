@@ -38,8 +38,8 @@ export default function Analytics({ empresaCod }) {
     valor_total_pedidos: 0,
     ticket_medio: 0,
     
-    // CLIENTES
-    clientes_atendidos: 0,
+    // COMPRADORES ✅ ATUALIZADO
+    compradores_atendidos: 0,
     
     // SERVIÇOS
     total_servicos: 0,
@@ -290,17 +290,17 @@ export default function Analytics({ empresaCod }) {
           </p>
         </div>
 
-        {/* Clientes e Serviços */}
+        {/* Compradores e Serviços ✅ ATUALIZADO */}
         <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50">
-          <h3 className="text-xl font-semibold text-white mb-6">👥 Clientes & Serviços</h3>
+          <h3 className="text-xl font-semibold text-white mb-6">👥 Compradores & Serviços</h3>
           <div className="space-y-6">
             <div className="flex items-center justify-between p-4 bg-gray-700/30 rounded-lg">
               <div className="flex items-center gap-3">
                 <Users className="w-8 h-8 text-purple-400" />
-                <span className="text-gray-300">Clientes Atendidos</span>
+                <span className="text-gray-300">Compradores Atendidos</span>
               </div>
               <span className="text-3xl font-bold text-white">
-                {stats.clientes_atendidos}
+                {stats.compradores_atendidos}
               </span>
             </div>
             <div className="flex items-center justify-between p-4 bg-gray-700/30 rounded-lg">
