@@ -43,7 +43,7 @@ function App() {
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
     console.log('🏢 EMPRESA SELECIONADA MUDOU!')
     console.log('📦 Valor atual:', empresaSelecionada)
-    console.log('✅ Válido?', empresaSelecionada ? 'SIM' : '❌ NÃO - VAZIO!')
+    console.log('✅ Válido?', empresaSelecionada !== undefined && empresaSelecionada !== null ? 'SIM' : '❌ NÃO - VAZIO!')
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
   }, [empresaSelecionada])
 
@@ -71,7 +71,8 @@ function App() {
           console.log('👑 Super Admin detectado - carregando empresas...')
           carregarEmpresas()
         } else {
-          const empresaCod = user.empresa_cod || ''
+          // ✅ CORREÇÃO: Garantir que COD seja string, mesmo se for "0"
+          const empresaCod = user.empresa_cod !== undefined && user.empresa_cod !== null ? String(user.empresa_cod) : ''
           console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
           console.log('🎯 DEFININDO EMPRESA SELECIONADA')
           console.log('📥 Valor recebido:', user.empresa_cod)
@@ -92,16 +93,30 @@ function App() {
     try {
       console.log('📡 Carregando lista de empresas...')
       const response = await fetch(`${API_URL}/admin/empresas`)
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`)
+      }
+      
       const data = await response.json()
+      
+      // ✅ VALIDAÇÃO: Garantir que data é array
+      if (!Array.isArray(data)) {
+        console.error('❌ API retornou formato inválido:', data)
+        setEmpresas([])
+        return
+      }
+      
       console.log('✅ Empresas carregadas:', data)
       setEmpresas(data)
       
       if (data.length > 0) {
         console.log('🎯 Selecionando primeira empresa:', data[0].cod)
-        setEmpresaSelecionada(data[0].cod)
+        setEmpresaSelecionada(String(data[0].cod))
       }
     } catch (error) {
       console.error('❌ Erro ao carregar empresas:', error)
+      setEmpresas([])
     }
   }
 
@@ -129,7 +144,8 @@ function App() {
       console.log('👑 Super Admin - carregando empresas...')
       carregarEmpresas()
     } else {
-      const empresaCod = user.empresa_cod || ''
+      // ✅ CORREÇÃO: Garantir que COD seja string, mesmo se for "0"
+      const empresaCod = user.empresa_cod !== undefined && user.empresa_cod !== null ? String(user.empresa_cod) : ''
       console.log('🎯 Definindo empresa:', empresaCod)
       setEmpresaSelecionada(empresaCod)
     }
@@ -158,7 +174,7 @@ function App() {
     console.log('📤 ENVIANDO MENSAGEM PARA IA')
     console.log('💬 Mensagem:', userMessage)
     console.log('🏢 empresaCod enviado:', empresaSelecionada)
-    console.log('❓ empresaCod está vazio?', !empresaSelecionada ? '⚠️ SIM - IA NÃO TERÁ CONTEXTO!' : '✅ NÃO - OK!')
+    console.log('❓ empresaCod vazio?', empresaSelecionada === '' ? '⚠️ SIM' : '✅ NÃO')
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
 
     try {
@@ -226,8 +242,9 @@ function App() {
     return <Login onLogin={handleLogin} onAdminClick={() => setCurrentPage('admin')} />
   }
 
+  // ✅ CORREÇÃO: Validar se empresas é array antes de usar .find()
   const empresaNome = isSuperAdmin 
-    ? empresas.find(e => e.cod === empresaSelecionada)?.razao_social || 'Selecione uma empresa'
+    ? (Array.isArray(empresas) ? empresas.find(e => e.cod === empresaSelecionada)?.razao_social : null) || 'Selecione uma empresa'
     : userData?.empresa_nome || 'JM TECNOLOGIA'
 
   console.log('🏷️ Nome da empresa exibido:', empresaNome)
@@ -275,7 +292,7 @@ function App() {
             </div>
           </div>
 
-          {isSuperAdmin && (
+          {isSuperAdmin && Array.isArray(empresas) && empresas.length > 0 && (
             <div className="mb-6 p-4 bg-slate-800/50 rounded-xl border border-slate-700/50">
               <label className="text-xs text-slate-400 font-semibold mb-2 flex items-center gap-2">
                 <Building2 className="w-4 h-4" />
@@ -372,7 +389,7 @@ function App() {
               </div>
             </div>
 
-            {empresaSelecionada && (
+            {empresaSelecionada !== '' && (
               <div className="flex items-center gap-2 px-4 py-2 bg-slate-800/50 rounded-xl border border-slate-700/50">
                 <Building2 className="w-4 h-4 text-cyan-400" />
                 <span className="text-sm text-slate-300">
