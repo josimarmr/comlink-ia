@@ -34,7 +34,7 @@ export default function Dashboard({
   
   const quickActions = [
     { icon: TrendingUp, text: 'Estatísticas', query: 'Mostre as estatísticas gerais do sistema', gradient: 'from-cyan-500 to-blue-500' },
-    { icon: Users, text: 'Clientes', query: 'Liste todos os clientes compradores', gradient: 'from-blue-500 to-purple-500' },
+    { icon: Users, text: 'Compradores', query: 'Liste todos os compradores', gradient: 'from-blue-500 to-purple-500' }, // ✅ ATUALIZADO
     { icon: FileText, text: 'Cotações', query: 'Mostre as últimas cotações recebidas', gradient: 'from-purple-500 to-pink-500' },
     { icon: BarChart3, text: 'Gráfico', query: 'Crie um gráfico das cotações', gradient: 'from-pink-500 to-orange-500' }
   ]
