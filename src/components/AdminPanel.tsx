@@ -20,6 +20,11 @@ interface Empresa {
   cod: string
   razao_social: string
   cnpj: string
+  ativo: number
+  plano_ativo: number
+  plano_id: number
+  nome_plano: string
+  valor_mensal: number
 }
 
 interface AdminPanelProps {
@@ -42,11 +47,11 @@ export default function AdminPanel({ onClose, userToken }: AdminPanelProps) {
   const [newPassword, setNewPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   
-  // Estados de cadastro - ✅ CORRIGIDO: usando empresa_id
+  // Estados de cadastro
   const [showNewUserForm, setShowNewUserForm] = useState(false)
   const [showNewEmpresaForm, setShowNewEmpresaForm] = useState(false)
   const [newUser, setNewUser] = useState({
-    empresa_id: 0, // ✅ MUDOU de empresa_cod para empresa_id
+    empresa_id: 0,
     email: '',
     nome_completo: '',
     senha: '',
@@ -78,9 +83,12 @@ export default function AdminPanel({ onClose, userToken }: AdminPanelProps) {
       const usersData = await usersRes.json()
       const empresasData = await empresasRes.json()
       
+      console.log('📊 Dados carregados:', { usuarios: usersData, empresas: empresasData })
+      
       setUsuarios(Array.isArray(usersData) ? usersData : [])
       setEmpresas(Array.isArray(empresasData) ? empresasData : [])
     } catch (error) {
+      console.error('❌ Erro ao carregar:', error)
       showMessage('error', 'Erro ao carregar dados')
       setUsuarios([])
       setEmpresas([])
@@ -196,9 +204,13 @@ export default function AdminPanel({ onClose, userToken }: AdminPanelProps) {
   }
 
   const handleCreateUser = async () => {
-    // ✅ VALIDAÇÃO CORRIGIDA: verifica empresa_id ao invés de empresa_cod
     if (!newUser.empresa_id || !newUser.email || !newUser.nome_completo || !newUser.senha) {
       showMessage('error', 'Preencha todos os campos obrigatórios')
+      return
+    }
+
+    if (newUser.senha.length < 6) {
+      showMessage('error', 'A senha deve ter pelo menos 6 caracteres')
       return
     }
 
@@ -212,7 +224,7 @@ export default function AdminPanel({ onClose, userToken }: AdminPanelProps) {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${userToken}`
         },
-        body: JSON.stringify(newUser) // ✅ Agora envia empresa_id correto
+        body: JSON.stringify(newUser)
       })
 
       const data = await response.json()
@@ -276,23 +288,42 @@ export default function AdminPanel({ onClose, userToken }: AdminPanelProps) {
     }
   }
 
-  // ==================== FILTROS ====================
+  // ==================== FILTROS (✅ CORRIGIDO) ====================
 
   const filteredUsers = usuarios.filter(user => {
-    const matchSearch = user.nome_completo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                       user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                       user.empresa_nome.toLowerCase().includes(searchTerm.toLowerCase())
+    const searchLower = searchTerm.toLowerCase()
+    
+    // ✅ Proteção contra null/undefined com optional chaining e fallback
+    const matchSearch = 
+      (user.nome_completo?.toLowerCase() || '').includes(searchLower) ||
+      (user.email?.toLowerCase() || '').includes(searchLower) ||
+      (user.empresa_nome?.toLowerCase() || '').includes(searchLower) ||
+      (user.empresa_cod?.toLowerCase() || '').includes(searchLower)
+    
     const matchEmpresa = !empresaFilter || user.empresa_cod === empresaFilter
+    
     return matchSearch && matchEmpresa
   })
 
   const groupedUsers = filteredUsers.reduce((acc, user) => {
-    if (!acc[user.empresa_nome]) {
-      acc[user.empresa_nome] = []
+    const empresaNome = user.empresa_nome || 'Sem Empresa'
+    if (!acc[empresaNome]) {
+      acc[empresaNome] = []
     }
-    acc[user.empresa_nome].push(user)
+    acc[empresaNome].push(user)
     return acc
   }, {} as Record<string, Usuario[]>)
+
+  // ✅ Filtro de empresas também protegido
+  const filteredEmpresas = empresas.filter(emp => {
+    if (!searchTerm) return true
+    const searchLower = searchTerm.toLowerCase()
+    return (
+      (emp.razao_social?.toLowerCase() || '').includes(searchLower) ||
+      (emp.cod?.toLowerCase() || '').includes(searchLower) ||
+      (emp.cnpj || '').includes(searchTerm)
+    )
+  })
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -383,7 +414,13 @@ export default function AdminPanel({ onClose, userToken }: AdminPanelProps) {
               </div>
 
               {/* Users List */}
-              {Object.entries(groupedUsers).map(([empresaNome, users]) => (
+              {loading && (
+                <div className="text-center py-12 text-slate-400">
+                  Carregando usuários...
+                </div>
+              )}
+
+              {!loading && Object.entries(groupedUsers).map(([empresaNome, users]) => (
                 <div key={empresaNome} className="space-y-3">
                   <h3 className="text-lg font-semibold text-cyan-400">{empresaNome}</h3>
                   <div className="space-y-2">
@@ -498,7 +535,7 @@ export default function AdminPanel({ onClose, userToken }: AdminPanelProps) {
                 </div>
               ))}
 
-              {filteredUsers.length === 0 && (
+              {!loading && filteredUsers.length === 0 && (
                 <div className="text-center py-12 text-slate-400">
                   Nenhum usuário encontrado
                 </div>
@@ -508,7 +545,18 @@ export default function AdminPanel({ onClose, userToken }: AdminPanelProps) {
 
           {activeTab === 'empresas' && (
             <div className="space-y-6">
-              <div className="flex justify-end">
+              {/* Search and Add Button */}
+              <div className="flex gap-4">
+                <div className="flex-1 relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                  <input
+                    type="text"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    placeholder="Buscar empresas..."
+                    className="w-full pl-10 pr-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
+                  />
+                </div>
                 <button
                   onClick={() => setShowNewEmpresaForm(true)}
                   className="px-4 py-3 bg-cyan-500 text-white rounded-xl hover:bg-cyan-600 transition-colors flex items-center gap-2"
@@ -518,27 +566,51 @@ export default function AdminPanel({ onClose, userToken }: AdminPanelProps) {
                 </button>
               </div>
 
-              <div className="grid gap-4">
-                {empresas.map(empresa => (
-                  <div key={empresa.id} className="bg-slate-800 border border-slate-700 rounded-xl p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="flex items-center gap-3">
-                          <h4 className="text-white font-medium">{empresa.razao_social}</h4>
-                          <span className="px-2 py-1 bg-slate-700 text-slate-300 rounded text-xs">
-                            COD: {empresa.cod}
-                          </span>
-                        </div>
-                        <div className="flex gap-4 mt-2">
-                          {empresa.cnpj && (
-                            <p className="text-slate-400 text-sm">CNPJ: {empresa.cnpj}</p>
-                          )}
+              {loading && (
+                <div className="text-center py-12 text-slate-400">
+                  Carregando empresas...
+                </div>
+              )}
+
+              {!loading && (
+                <div className="grid gap-4">
+                  {filteredEmpresas.map(empresa => (
+                    <div key={empresa.id} className="bg-slate-800 border border-slate-700 rounded-xl p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3">
+                            <h4 className="text-white font-medium">{empresa.razao_social}</h4>
+                            <span className="px-2 py-1 bg-slate-700 text-slate-300 rounded text-xs">
+                              COD: {empresa.cod}
+                            </span>
+                            <span className={`px-2 py-1 rounded text-xs ${
+                              empresa.plano_ativo ? 'bg-green-500/20 text-green-300' : 'bg-red-500/20 text-red-300'
+                            }`}>
+                              {empresa.plano_ativo ? 'Ativo' : 'Inativo'}
+                            </span>
+                          </div>
+                          <div className="flex gap-4 mt-2">
+                            {empresa.cnpj && (
+                              <p className="text-slate-400 text-sm">CNPJ: {empresa.cnpj}</p>
+                            )}
+                            {empresa.nome_plano && (
+                              <p className="text-slate-400 text-sm">
+                                Plano: {empresa.nome_plano} (R$ {empresa.valor_mensal}/mês)
+                              </p>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
+
+              {!loading && filteredEmpresas.length === 0 && (
+                <div className="text-center py-12 text-slate-400">
+                  Nenhuma empresa encontrada
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -574,13 +646,14 @@ export default function AdminPanel({ onClose, userToken }: AdminPanelProps) {
                 disabled={loading || !newPassword}
                 className="flex-1 px-4 py-3 bg-cyan-500 text-white rounded-lg hover:bg-cyan-600 disabled:opacity-50"
               >
-                Alterar Senha
+                {loading ? 'Alterando...' : 'Alterar Senha'}
               </button>
               <button
                 onClick={() => {
                   setShowPasswordModal(false)
                   setUserToChangePassword(null)
                   setNewPassword('')
+                  setShowPassword(false)
                 }}
                 className="px-4 py-3 bg-slate-700 text-white rounded-lg hover:bg-slate-600"
               >
@@ -591,13 +664,12 @@ export default function AdminPanel({ onClose, userToken }: AdminPanelProps) {
         </div>
       )}
 
-      {/* Modal: Novo Usuário - ✅ CORRIGIDO */}
+      {/* Modal: Novo Usuário */}
       {showNewUserForm && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[60] p-4">
           <div className="bg-slate-800 border border-slate-700 rounded-xl p-6 max-w-md w-full">
             <h3 className="text-xl font-bold text-white mb-4">Novo Usuário</h3>
             <div className="space-y-4">
-              {/* ✅ CORRIGIDO: Select agora salva empresa_id */}
               <div>
                 <label className="block text-sm text-slate-400 mb-2">Empresa *</label>
                 <select
@@ -696,7 +768,7 @@ export default function AdminPanel({ onClose, userToken }: AdminPanelProps) {
                 type="text"
                 value={newEmpresa.cod}
                 onChange={(e) => setNewEmpresa({ ...newEmpresa, cod: e.target.value.toUpperCase() })}
-                placeholder="COD (ex: JM234) *"
+                placeholder="COD (ex: FOR-001) *"
                 className="w-full px-4 py-3 bg-slate-900 border border-slate-600 rounded-lg text-white uppercase placeholder-slate-500"
               />
               <input
