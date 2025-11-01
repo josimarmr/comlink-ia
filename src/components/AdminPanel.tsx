@@ -288,12 +288,44 @@ export default function AdminPanel({ onClose, userToken }: AdminPanelProps) {
     }
   }
 
-  // ==================== FILTROS (✅ CORRIGIDO) ====================
+  const handleTogglePlanoAtivo = async (empresa: Empresa) => {
+    const novoStatus = empresa.plano_ativo === 1 ? 0 : 1
+    const acao = novoStatus === 1 ? 'ativar' : 'desativar'
+    
+    if (!confirm(`Tem certeza que deseja ${acao} o plano da empresa ${empresa.razao_social}?`)) return
+
+    setLoading(true)
+    try {
+      const response = await fetch(`${API_URL}/admin/empresas/${empresa.id}/plano`, {
+        method: 'PUT',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${userToken}`
+        },
+        body: JSON.stringify({ plano_ativo: novoStatus })
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        showMessage('success', `Plano ${novoStatus === 1 ? 'ativado' : 'desativado'} com sucesso`)
+        carregarDados()
+      } else {
+        showMessage('error', data.error || 'Erro ao atualizar status do plano')
+      }
+    } catch (error) {
+      console.error('❌ Erro ao atualizar plano:', error)
+      showMessage('error', 'Erro ao atualizar status do plano')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // ==================== FILTROS ====================
 
   const filteredUsers = usuarios.filter(user => {
     const searchLower = searchTerm.toLowerCase()
     
-    // ✅ Proteção contra null/undefined com optional chaining e fallback
     const matchSearch = 
       (user.nome_completo?.toLowerCase() || '').includes(searchLower) ||
       (user.email?.toLowerCase() || '').includes(searchLower) ||
@@ -314,7 +346,6 @@ export default function AdminPanel({ onClose, userToken }: AdminPanelProps) {
     return acc
   }, {} as Record<string, Usuario[]>)
 
-  // ✅ Filtro de empresas também protegido
   const filteredEmpresas = empresas.filter(emp => {
     if (!searchTerm) return true
     const searchLower = searchTerm.toLowerCase()
@@ -583,10 +614,12 @@ export default function AdminPanel({ onClose, userToken }: AdminPanelProps) {
                             <span className="px-2 py-1 bg-slate-700 text-slate-300 rounded text-xs">
                               COD: {empresa.cod}
                             </span>
-                            <span className={`px-2 py-1 rounded text-xs ${
-                              empresa.plano_ativo ? 'bg-green-500/20 text-green-300' : 'bg-red-500/20 text-red-300'
+                            <span className={`px-2 py-1 rounded text-xs font-medium ${
+                              empresa.plano_ativo === 1 
+                                ? 'bg-green-500/20 text-green-300 border border-green-500/30' 
+                                : 'bg-red-500/20 text-red-300 border border-red-500/30'
                             }`}>
-                              {empresa.plano_ativo ? 'Ativo' : 'Inativo'}
+                              {empresa.plano_ativo === 1 ? '✓ Ativo' : '✕ Inativo'}
                             </span>
                           </div>
                           <div className="flex gap-4 mt-2">
@@ -599,6 +632,32 @@ export default function AdminPanel({ onClose, userToken }: AdminPanelProps) {
                               </p>
                             )}
                           </div>
+                        </div>
+                        
+                        {/* BOTÃO ATIVAR/DESATIVAR PLANO */}
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleTogglePlanoAtivo(empresa)}
+                            disabled={loading}
+                            className={`px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 ${
+                              empresa.plano_ativo === 1
+                                ? 'bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500/20'
+                                : 'bg-green-500/10 text-green-400 border border-green-500/30 hover:bg-green-500/20'
+                            } disabled:opacity-50 disabled:cursor-not-allowed`}
+                            title={empresa.plano_ativo === 1 ? 'Desativar plano' : 'Ativar plano'}
+                          >
+                            {empresa.plano_ativo === 1 ? (
+                              <>
+                                <X className="w-4 h-4" />
+                                Desativar Plano
+                              </>
+                            ) : (
+                              <>
+                                <CheckCircle className="w-4 h-4" />
+                                Ativar Plano
+                              </>
+                            )}
+                          </button>
                         </div>
                       </div>
                     </div>
