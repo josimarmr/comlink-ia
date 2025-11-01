@@ -38,7 +38,7 @@ export default function AdminPanel({ onClose, userToken }: AdminPanelProps) {
   const [empresas, setEmpresas] = useState<Empresa[]>([])
   const [loading, setLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
-  const [empresaFilter, setEmpresaFilter] = useState('')
+  const [empresaFilter, setEmpresaFilter] = useState('') // ✅ Filtro de empresa
   
   // Estados de edição
   const [editingUser, setEditingUser] = useState<Usuario | null>(null)
@@ -83,7 +83,9 @@ export default function AdminPanel({ onClose, userToken }: AdminPanelProps) {
       const usersData = await usersRes.json()
       const empresasData = await empresasRes.json()
       
-      console.log('📊 Dados carregados:', { usuarios: usersData, empresas: empresasData })
+      console.log('📊 Dados carregados do banco:')
+      console.log('Usuários:', usersData)
+      console.log('Empresas:', empresasData)
       
       setUsuarios(Array.isArray(usersData) ? usersData : [])
       setEmpresas(Array.isArray(empresasData) ? empresasData : [])
@@ -323,20 +325,32 @@ export default function AdminPanel({ onClose, userToken }: AdminPanelProps) {
 
   // ==================== FILTROS ====================
 
-  const filteredUsers = usuarios.filter(user => {
-    const searchLower = searchTerm.toLowerCase()
+  // ✅ FILTRO 1: Filtrar por empresa selecionada (dropdown)
+  const usuariosPorEmpresa = empresaFilter 
+    ? usuarios.filter(user => user.empresa_cod === empresaFilter)
+    : usuarios
+
+  console.log('🔍 Filtro aplicado:')
+  console.log('Empresa selecionada:', empresaFilter || 'TODAS')
+  console.log('Total usuários no banco:', usuarios.length)
+  console.log('Usuários após filtro empresa:', usuariosPorEmpresa.length)
+
+  // ✅ FILTRO 2: Filtrar por busca (nome, email)
+  const filteredUsers = usuariosPorEmpresa.filter(user => {
+    if (!searchTerm) return true
     
-    const matchSearch = 
+    const searchLower = searchTerm.toLowerCase()
+    return (
       (user.nome_completo?.toLowerCase() || '').includes(searchLower) ||
       (user.email?.toLowerCase() || '').includes(searchLower) ||
       (user.empresa_nome?.toLowerCase() || '').includes(searchLower) ||
       (user.empresa_cod?.toLowerCase() || '').includes(searchLower)
-    
-    const matchEmpresa = !empresaFilter || user.empresa_cod === empresaFilter
-    
-    return matchSearch && matchEmpresa
+    )
   })
 
+  console.log('Usuários após filtro busca:', filteredUsers.length)
+
+  // ✅ AGRUPAR por empresa
   const groupedUsers = filteredUsers.reduce((acc, user) => {
     const empresaNome = user.empresa_nome || 'Sem Empresa'
     if (!acc[empresaNome]) {
@@ -346,6 +360,7 @@ export default function AdminPanel({ onClose, userToken }: AdminPanelProps) {
     return acc
   }, {} as Record<string, Usuario[]>)
 
+  // ✅ FILTRO de empresas (para busca)
   const filteredEmpresas = empresas.filter(emp => {
     if (!searchTerm) return true
     const searchLower = searchTerm.toLowerCase()
@@ -364,7 +379,7 @@ export default function AdminPanel({ onClose, userToken }: AdminPanelProps) {
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-2xl font-bold text-white">Painel Administrativo</h2>
-              <p className="text-slate-400 text-sm mt-1">Gerenciar usuários e empresas</p>
+              <p className="text-slate-400 text-sm mt-1">Gerenciar usuários e empresas do sistema</p>
             </div>
             <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
               <X className="w-6 h-6" />
@@ -382,7 +397,7 @@ export default function AdminPanel({ onClose, userToken }: AdminPanelProps) {
               }`}
             >
               <Users className="w-4 h-4" />
-              Usuários ({usuarios.length})
+              Usuários ({filteredUsers.length})
             </button>
             <button
               onClick={() => setActiveTab('empresas')}
@@ -425,19 +440,25 @@ export default function AdminPanel({ onClose, userToken }: AdminPanelProps) {
                     className="w-full pl-10 pr-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
                   />
                 </div>
+                {/* ✅ FILTRO DE EMPRESA */}
                 <select
                   value={empresaFilter}
-                  onChange={(e) => setEmpresaFilter(e.target.value)}
-                  className="px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-cyan-500"
+                  onChange={(e) => {
+                    console.log('🏢 Empresa selecionada:', e.target.value)
+                    setEmpresaFilter(e.target.value)
+                  }}
+                  className="px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-cyan-500 min-w-[250px]"
                 >
-                  <option value="">Todas empresas</option>
+                  <option value="">Todas as empresas</option>
                   {empresas.map(emp => (
-                    <option key={emp.id} value={emp.cod}>{emp.razao_social}</option>
+                    <option key={emp.id} value={emp.cod}>
+                      {emp.razao_social} ({emp.cod})
+                    </option>
                   ))}
                 </select>
                 <button
                   onClick={() => setShowNewUserForm(true)}
-                  className="px-4 py-3 bg-cyan-500 text-white rounded-xl hover:bg-cyan-600 transition-colors flex items-center gap-2"
+                  className="px-4 py-3 bg-cyan-500 text-white rounded-xl hover:bg-cyan-600 transition-colors flex items-center gap-2 whitespace-nowrap"
                 >
                   <Plus className="w-5 h-5" />
                   Novo Usuário
@@ -567,8 +588,13 @@ export default function AdminPanel({ onClose, userToken }: AdminPanelProps) {
               ))}
 
               {!loading && filteredUsers.length === 0 && (
-                <div className="text-center py-12 text-slate-400">
-                  Nenhum usuário encontrado
+                <div className="text-center py-12">
+                  <p className="text-slate-400">
+                    {empresaFilter 
+                      ? `Nenhum usuário encontrado para a empresa selecionada` 
+                      : 'Nenhum usuário encontrado'
+                    }
+                  </p>
                 </div>
               )}
             </div>
