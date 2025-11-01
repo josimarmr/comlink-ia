@@ -34,13 +34,11 @@ function App() {
 
   const [empresas, setEmpresas] = useState<Empresa[]>([])
   const [empresaSelecionada, setEmpresaSelecionada] = useState<string>('')
-  const [mostrarDropdown, setMostrarDropdown] = useState(false) // ✅ NOVO
+  const [mostrarDropdown, setMostrarDropdown] = useState(false)
 
-  const isSuperAdmin = userData?.perfil === 'super_admin'
+  // ✅ CORRIGIDO: Verifica se empresa_cod === '0'
+  const isSuperAdmin = userData?.empresa_cod === '0'
 
-  // ===================================
-  // 🔍 DEBUG: MONITORAR empresaSelecionada
-  // ===================================
   useEffect(() => {
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
     console.log('🏢 EMPRESA SELECIONADA MUDOU!')
@@ -60,21 +58,20 @@ function App() {
         console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
         console.log('✅ USUÁRIO ENCONTRADO NO LOCALSTORAGE')
         console.log('📦 Dados completos:', user)
-        console.log('👤 Nome:', user.nome_completo)
+        console.log('👤 Nome:', user.nome)
         console.log('🏢 Empresa COD:', user.empresa_cod)
         console.log('🏢 Empresa Nome:', user.empresa_nome)
-        console.log('👔 Perfil:', user.perfil)
+        console.log('👔 É Admin?', user.empresa_cod === '0' ? 'SIM' : 'NÃO')
         console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
         
         setUserData(user)
         setIsLoggedIn(true)
         
-        if (user.perfil === 'super_admin') {
-          console.log('👑 Super Admin detectado - carregando empresas...')
+        // ✅ CORRIGIDO: Verifica empresa_cod === '0'
+        if (user.empresa_cod === '0') {
+          console.log('👑 Admin detectado - carregando empresas...')
           carregarEmpresas()
-          // ✅ NÃO seleciona automaticamente - aguarda escolha manual
         } else {
-          // ✅ CORREÇÃO: Garantir que COD seja string, mesmo se for "0"
           const empresaCod = user.empresa_cod !== undefined && user.empresa_cod !== null ? String(user.empresa_cod) : ''
           console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
           console.log('🎯 DEFININDO EMPRESA SELECIONADA')
@@ -103,7 +100,6 @@ function App() {
       
       const data = await response.json()
       
-      // ✅ VALIDAÇÃO: Garantir que data é array
       if (!Array.isArray(data)) {
         console.error('❌ API retornou formato inválido:', data)
         setEmpresas([])
@@ -113,7 +109,6 @@ function App() {
       console.log('✅ Empresas carregadas:', data)
       setEmpresas(data)
       
-      // ✅ NÃO seleciona automaticamente - usuário deve escolher
       if (data.length > 0) {
         console.log('ℹ️ Aguardando seleção manual de empresa...')
       }
@@ -138,16 +133,17 @@ function App() {
     console.log('🔐 LOGIN REALIZADO COM SUCESSO!')
     console.log('📦 Dados do usuário:', user)
     console.log('🏢 empresa_cod:', user.empresa_cod)
+    console.log('👔 É Admin?', user.empresa_cod === '0' ? 'SIM' : 'NÃO')
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
     
     setUserData(user)
     setIsLoggedIn(true)
     
-    if (user.perfil === 'super_admin') {
-      console.log('👑 Super Admin - carregando empresas...')
+    // ✅ CORRIGIDO: Verifica empresa_cod === '0'
+    if (user.empresa_cod === '0') {
+      console.log('👑 Admin - carregando empresas...')
       carregarEmpresas()
     } else {
-      // ✅ CORREÇÃO: Garantir que COD seja string, mesmo se for "0"
       const empresaCod = user.empresa_cod !== undefined && user.empresa_cod !== null ? String(user.empresa_cod) : ''
       console.log('🎯 Definindo empresa:', empresaCod)
       setEmpresaSelecionada(empresaCod)
@@ -174,7 +170,6 @@ function App() {
     setMessages(prev => [...prev, { role: 'user', content: userMessage, type: 'text' }])
     setLoading(true)
 
-    // ✅ BUSCAR NOME DA EMPRESA
     const empresaNome = isSuperAdmin && empresaSelecionada
       ? (Array.isArray(empresas) ? empresas.find(e => e.cod === empresaSelecionada)?.razao_social : null) || 'Fornecedor'
       : userData?.empresa_nome || 'Fornecedor'
@@ -183,16 +178,15 @@ function App() {
     console.log('📤 ENVIANDO MENSAGEM PARA IA')
     console.log('💬 Mensagem:', userMessage)
     console.log('🏢 empresaCod:', empresaSelecionada)
-    console.log('🏷️ empresaNome:', empresaNome) // ✅ NOVO
+    console.log('🏷️ empresaNome:', empresaNome)
     console.log('❓ empresaCod vazio?', empresaSelecionada === '' ? '⚠️ SIM' : '✅ NÃO')
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
 
     try {
-      // ✅ PAYLOAD COMPLETO COM COD E NOME
       const payload = { 
         message: userMessage,
         empresaCod: empresaSelecionada,
-        empresaNome: empresaNome // ✅ NOVO
+        empresaNome: empresaNome
       }
       
       console.log('📦 Payload completo:', JSON.stringify(payload, null, 2))
@@ -254,12 +248,11 @@ function App() {
     return <Login onLogin={handleLogin} onAdminClick={() => setCurrentPage('admin')} />
   }
 
-  // ✅ CORREÇÃO: Validar se empresas é array antes de usar .find()
   const empresaNome = isSuperAdmin 
     ? empresaSelecionada
       ? (Array.isArray(empresas) ? empresas.find(e => e.cod === empresaSelecionada)?.razao_social : null) || 'Empresa não encontrada'
       : 'Selecione uma empresa'
-    : userData?.empresa_nome || 'JM TECNOLOGIA'
+    : userData?.empresa_nome || 'Fornecedor'
 
   console.log('🏷️ Nome da empresa exibido:', empresaNome)
 
@@ -283,7 +276,7 @@ function App() {
               </div>
               <div className="flex-1">
                 <p className="text-xs text-slate-400 font-semibold">
-                  {isSuperAdmin ? 'Visualizando' : 'Fornecedor'}
+                  {isSuperAdmin ? 'Administrador' : 'Fornecedor'}
                 </p>
                 <p className="text-sm font-bold bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
                   {empresaNome}
@@ -291,14 +284,14 @@ function App() {
               </div>
             </div>
             <div className="pl-1">
-              <p className="text-xs text-slate-500 mb-1">{userData?.nome_completo || 'Usuário'}</p>
+              <p className="text-xs text-slate-500 mb-1">{userData?.nome || 'Usuário'}</p>
               <div className="flex items-center gap-2 mb-2">
                 <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                  userData?.perfil === 'super_admin' 
+                  isSuperAdmin
                     ? 'bg-purple-500/20 text-purple-300' 
                     : 'bg-blue-500/20 text-blue-300'
                 }`}>
-                  {userData?.perfil === 'super_admin' ? 'Super Admin' : 'Consultor'}
+                  {isSuperAdmin ? 'Super Admin' : 'Fornecedor'}
                 </span>
               </div>
               <div className="flex items-center gap-2">
@@ -308,7 +301,7 @@ function App() {
             </div>
           </div>
 
-          {/* ✅ DROPDOWN DE SELEÇÃO DE EMPRESA (SUPER ADMIN) */}
+          {/* DROPDOWN DE SELEÇÃO DE EMPRESA (ADMIN) */}
           {isSuperAdmin && Array.isArray(empresas) && empresas.length > 0 && (
             <div className="mb-6 relative">
               <label className="block text-xs text-slate-400 font-semibold mb-2 flex items-center gap-2">
@@ -316,7 +309,6 @@ function App() {
                 Empresa Ativa
               </label>
               
-              {/* Botão do dropdown */}
               <button
                 onClick={() => setMostrarDropdown(!mostrarDropdown)}
                 className="w-full px-4 py-3 bg-slate-800/80 border border-slate-700 rounded-xl text-white text-sm focus:outline-none focus:border-cyan-500 hover:bg-slate-800 transition-colors flex items-center justify-between"
@@ -329,7 +321,6 @@ function App() {
                 <ChevronDown className={`w-4 h-4 transition-transform ${mostrarDropdown ? 'rotate-180' : ''}`} />
               </button>
 
-              {/* Lista de empresas */}
               {mostrarDropdown && (
                 <div className="absolute top-full left-0 right-0 mt-2 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl max-h-60 overflow-y-auto z-50">
                   {empresas.map(emp => (
@@ -393,6 +384,7 @@ function App() {
               <span className="font-semibold">Analytics</span>
             </button>
 
+            {/* ✅ CORRIGIDO: Usa isSuperAdmin que verifica empresa_cod === '0' */}
             {isSuperAdmin && (
               <button
                 onClick={() => setCurrentPage('admin')}
