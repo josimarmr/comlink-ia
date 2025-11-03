@@ -1,4 +1,4 @@
-import { Send, Zap, TrendingUp, Users, FileText, BarChart3 } from 'lucide-react'
+import { Send, Zap, TrendingUp, Users, FileText, BarChart3, BarChart2 } from 'lucide-react'
 import { PieChart, Pie, Cell, BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Legend, Tooltip } from 'recharts'
 
 // ✅ FUNÇÕES DE GRÁFICO INLINE
@@ -119,6 +119,7 @@ interface Message {
   content: string
   chartData?: { labels: string[], values: number[] }
   type?: 'text' | 'chart'
+  userQuery?: string  // ✅ NOVO: Armazenar pergunta original
 }
 
 interface DashboardProps {
@@ -130,6 +131,7 @@ interface DashboardProps {
   handleKeyPress: (e: React.KeyboardEvent) => void
   chatEndRef: React.RefObject<HTMLDivElement>
   inputRef: React.RefObject<HTMLInputElement>
+  sendMessageWithChart?: (query: string) => void  // ✅ NOVO
 }
 
 export default function Dashboard({
@@ -140,7 +142,8 @@ export default function Dashboard({
   sendMessage,
   handleKeyPress,
   chatEndRef,
-  inputRef
+  inputRef,
+  sendMessageWithChart
 }: DashboardProps) {
   
   const COLORS = ['#06b6d4', '#3b82f6', '#8b5cf6'];
@@ -155,6 +158,13 @@ export default function Dashboard({
   const handleQuickAction = (query: string) => {
     setInput(query)
     setTimeout(() => sendMessage(), 50)
+  }
+
+  // ✅ NOVO: Função para gerar gráfico a partir de uma resposta existente
+  const handleGerarGrafico = (userQuery: string) => {
+    if (sendMessageWithChart) {
+      sendMessageWithChart(userQuery);
+    }
   }
 
   return (
@@ -259,6 +269,18 @@ export default function Dashboard({
                         
                         {/* ✅ RENDERIZAR GRÁFICO NOVO */}
                         {graficoData && <GraficoChat data={graficoData} />}
+                        
+                        {/* ✅ BOTÃO GERAR GRÁFICO - Só aparece se NÃO tiver gráfico */}
+                        {msg.role === 'assistant' && !graficoData && msg.userQuery && (
+                          <button
+                            onClick={() => handleGerarGrafico(msg.userQuery!)}
+                            disabled={loading}
+                            className="mt-4 flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-sm font-semibold transition-all shadow-lg hover:shadow-purple-500/30 hover:scale-105 active:scale-95"
+                          >
+                            <BarChart2 className="w-4 h-4" />
+                            📊 Gerar Gráfico
+                          </button>
+                        )}
                         
                         {/* Manter compatibilidade com gráficos antigos */}
                         {msg.type === 'chart' && msg.chartData && !graficoData && (
