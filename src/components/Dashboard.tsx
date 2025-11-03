@@ -1,7 +1,7 @@
 import { Send, Zap, TrendingUp, Users, FileText, BarChart3 } from 'lucide-react'
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts'
 import GraficoChat from './GraficoChat'
-import { extrairGrafico, removerGrafico } from '../utils/graficos'
+import { extrairGrafico, removerGrafico } from '../utils/graficos.js'
 
 interface Message {
   role: 'user' | 'assistant'
