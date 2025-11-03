@@ -12,6 +12,7 @@ interface Message {
   content: string
   chartData?: { labels: string[], values: number[] }
   type?: 'text' | 'chart'
+  userQuery?: string  // ✅ NOVO: Armazenar pergunta original
 }
 
 interface Empresa {
@@ -163,7 +164,15 @@ function App() {
 
     const userMessage = input.trim()
     setInput('')
-    setMessages(prev => [...prev, { role: 'user', content: userMessage, type: 'text' }])
+    
+    // ✅ ATUALIZADO: Salvar a pergunta original
+    setMessages(prev => [...prev, { 
+      role: 'user', 
+      content: userMessage, 
+      type: 'text',
+      userQuery: userMessage
+    }])
+    
     setLoading(true)
 
     const empresaNome = isSuperAdmin && empresaSelecionada
@@ -175,7 +184,6 @@ function App() {
     console.log('💬 Mensagem:', userMessage)
     console.log('🏢 empresaCod:', empresaSelecionada)
     console.log('🏷️ empresaNome:', empresaNome)
-    console.log('🎯 promptTipo: analise_visual')
     console.log('❓ empresaCod vazio?', empresaSelecionada === '' ? '⚠️ SIM' : '✅ NÃO')
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
 
@@ -184,7 +192,8 @@ function App() {
         message: userMessage,
         empresaCod: empresaSelecionada,
         empresaNome: empresaNome,
-        promptTipo: 'analise_visual'  // ✅ ADICIONADO!
+        promptTipo: 'analise_visual',
+        gerarGrafico: false  // ✅ Normal: sem gráfico
       }
       
       console.log('📦 Payload completo:', JSON.stringify(payload, null, 2))
@@ -208,18 +217,21 @@ function App() {
       
       const assistantMessage = data.message || data.response || 'Sem resposta'
       
+      // ✅ ATUALIZADO: Salvar a pergunta original na resposta também
       if (data.type === 'chart' && data.chartData) {
         setMessages(prev => [...prev, { 
           role: 'assistant', 
           content: assistantMessage,
           chartData: data.chartData,
-          type: 'chart'
+          type: 'chart',
+          userQuery: userMessage
         }])
       } else {
         setMessages(prev => [...prev, { 
           role: 'assistant', 
           content: assistantMessage,
-          type: 'text'
+          type: 'text',
+          userQuery: userMessage
         }])
       }
     } catch (error) {
@@ -232,6 +244,67 @@ function App() {
     } finally {
       setLoading(false)
       setTimeout(() => inputRef.current?.focus(), 100)
+    }
+  }
+
+  // ✅ NOVO: Função para gerar gráfico a partir de resposta existente
+  const sendMessageWithChart = async (userQuery: string) => {
+    if (loading) return
+
+    setLoading(true)
+
+    const empresaNome = isSuperAdmin && empresaSelecionada
+      ? (Array.isArray(empresas) ? empresas.find(e => e.cod === empresaSelecionada)?.razao_social : null) || 'Fornecedor'
+      : userData?.empresa_nome || 'Fornecedor'
+
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    console.log('📊 GERANDO GRÁFICO')
+    console.log('💬 Pergunta original:', userQuery)
+    console.log('🏢 empresaCod:', empresaSelecionada)
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+
+    try {
+      const payload = { 
+        message: userQuery,
+        empresaCod: empresaSelecionada,
+        empresaNome: empresaNome,
+        promptTipo: 'analise_visual',
+        gerarGrafico: true  // ✅ Flag especial para forçar gráfico
+      }
+      
+      console.log('📦 Payload com gráfico:', JSON.stringify(payload, null, 2))
+
+      const response = await fetch(`${API_URL}/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+
+      if (!response.ok) {
+        console.error('❌ Erro HTTP:', response.status, response.statusText)
+        throw new Error('Erro na API')
+      }
+
+      const data = await response.json()
+      console.log('✅ Resposta com gráfico recebida')
+      
+      const assistantMessage = data.message || data.response || 'Sem resposta'
+      
+      setMessages(prev => [...prev, { 
+        role: 'assistant', 
+        content: assistantMessage,
+        type: 'text',
+        userQuery: userQuery
+      }])
+    } catch (error) {
+      console.error('❌ ERRO AO GERAR GRÁFICO:', error)
+      setMessages(prev => [...prev, { 
+        role: 'assistant', 
+        content: 'Erro ao gerar gráfico. Tente novamente.',
+        type: 'text'
+      }])
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -448,6 +521,7 @@ function App() {
               setInput={setInput}
               loading={loading}
               sendMessage={sendMessage}
+              sendMessageWithChart={sendMessageWithChart}
               handleKeyPress={handleKeyPress}
               chatEndRef={chatEndRef}
               inputRef={inputRef}
