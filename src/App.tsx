@@ -36,7 +36,6 @@ function App() {
   const [empresaSelecionada, setEmpresaSelecionada] = useState<string>('')
   const [mostrarDropdown, setMostrarDropdown] = useState(false)
 
-  // ✅ CORRIGIDO: Verifica se empresa_cod === '0'
   const isSuperAdmin = userData?.empresa_cod === '0'
 
   useEffect(() => {
@@ -47,7 +46,6 @@ function App() {
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
   }, [empresaSelecionada])
 
-  // Verificar login ao carregar
   useEffect(() => {
     console.log('🔄 Verificando login salvo...')
     const savedUser = localStorage.getItem('comlink_user')
@@ -67,7 +65,6 @@ function App() {
         setUserData(user)
         setIsLoggedIn(true)
         
-        // ✅ CORRIGIDO: Verifica empresa_cod === '0'
         if (user.empresa_cod === '0') {
           console.log('👑 Admin detectado - carregando empresas...')
           carregarEmpresas()
@@ -139,7 +136,6 @@ function App() {
     setUserData(user)
     setIsLoggedIn(true)
     
-    // ✅ CORRIGIDO: Verifica empresa_cod === '0'
     if (user.empresa_cod === '0') {
       console.log('👑 Admin - carregando empresas...')
       carregarEmpresas()
@@ -179,6 +175,7 @@ function App() {
     console.log('💬 Mensagem:', userMessage)
     console.log('🏢 empresaCod:', empresaSelecionada)
     console.log('🏷️ empresaNome:', empresaNome)
+    console.log('🎯 promptTipo: analise_visual')
     console.log('❓ empresaCod vazio?', empresaSelecionada === '' ? '⚠️ SIM' : '✅ NÃO')
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
 
@@ -186,7 +183,8 @@ function App() {
       const payload = { 
         message: userMessage,
         empresaCod: empresaSelecionada,
-        empresaNome: empresaNome
+        empresaNome: empresaNome,
+        promptTipo: 'analise_visual'  // ✅ ADICIONADO!
       }
       
       console.log('📦 Payload completo:', JSON.stringify(payload, null, 2))
@@ -384,7 +382,6 @@ function App() {
               <span className="font-semibold">Analytics</span>
             </button>
 
-            {/* ✅ CORRIGIDO: Usa isSuperAdmin que verifica empresa_cod === '0' */}
             {isSuperAdmin && (
               <button
                 onClick={() => setCurrentPage('admin')}
