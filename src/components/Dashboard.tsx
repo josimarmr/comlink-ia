@@ -1,5 +1,7 @@
 import { Send, Zap, TrendingUp, Users, FileText, BarChart3 } from 'lucide-react'
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts'
+import GraficoChat from './GraficoChat'
+import { extrairGrafico, removerGrafico } from '../utils/graficos'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -34,9 +36,9 @@ export default function Dashboard({
   
   const quickActions = [
     { icon: TrendingUp, text: 'Estatísticas', query: 'Mostre as estatísticas gerais do sistema', gradient: 'from-cyan-500 to-blue-500' },
-    { icon: Users, text: 'Compradores', query: 'Liste todos os compradores', gradient: 'from-blue-500 to-purple-500' }, // ✅ ATUALIZADO
+    { icon: Users, text: 'Compradores', query: 'Liste todos os compradores', gradient: 'from-blue-500 to-purple-500' },
     { icon: FileText, text: 'Cotações', query: 'Mostre as últimas cotações recebidas', gradient: 'from-purple-500 to-pink-500' },
-    { icon: BarChart3, text: 'Gráfico', query: 'Crie um gráfico das cotações', gradient: 'from-pink-500 to-orange-500' }
+    { icon: BarChart3, text: 'Gráfico', query: 'Me mostre um gráfico de pizza das cotações', gradient: 'from-pink-500 to-orange-500' }
   ]
 
   const handleQuickAction = (query: string) => {
@@ -110,91 +112,101 @@ export default function Dashboard({
             </div>
           ) : (
             <div className="space-y-6 py-6">
-              {messages.map((msg, idx) => (
-                <div
-                  key={idx}
-                  className={`flex gap-4 ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-slideUp`}
-                  style={{ animationDelay: `${idx * 0.1}s` }}
-                >
-                  {msg.role === 'assistant' && (
-                    <div className="flex-shrink-0">
-                      {/* Avatar do Robô nas mensagens */}
-                      <div className="w-12 h-12 rounded-xl overflow-hidden shadow-lg shadow-cyan-500/30 bg-gradient-to-br from-slate-800 to-slate-900 border border-cyan-500/30">
-                        <img 
-                          src="/robot.png" 
-                          alt="CLK IA" 
-                          className="w-full h-full object-cover scale-150 translate-y-2"
-                        />
+              {messages.map((msg, idx) => {
+                // ✅ NOVA LÓGICA: Extrair gráfico da mensagem
+                const graficoData = msg.role === 'assistant' ? extrairGrafico(msg.content) : null;
+                const textoLimpo = msg.role === 'assistant' ? removerGrafico(msg.content) : msg.content;
+                
+                return (
+                  <div
+                    key={idx}
+                    className={`flex gap-4 ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-slideUp`}
+                    style={{ animationDelay: `${idx * 0.1}s` }}
+                  >
+                    {msg.role === 'assistant' && (
+                      <div className="flex-shrink-0">
+                        {/* Avatar do Robô nas mensagens */}
+                        <div className="w-12 h-12 rounded-xl overflow-hidden shadow-lg shadow-cyan-500/30 bg-gradient-to-br from-slate-800 to-slate-900 border border-cyan-500/30">
+                          <img 
+                            src="/robot.png" 
+                            alt="CLK IA" 
+                            className="w-full h-full object-cover scale-150 translate-y-2"
+                          />
+                        </div>
                       </div>
-                    </div>
-                  )}
-                  
-                  <div className={`max-w-[75%] ${msg.role === 'user' ? 'order-first' : ''}`}>
-                    <div className={`rounded-2xl px-6 py-4 ${
-                      msg.role === 'user'
-                        ? 'bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-500 text-white shadow-lg shadow-cyan-500/20'
-                        : 'bg-slate-800/70 backdrop-blur-xl text-slate-100 border border-slate-700/50'
-                    }`}>
-                      <p style={{ whiteSpace: 'pre-line' }} className="leading-relaxed font-medium mb-4">
-                        {msg.content}
-                      </p>
-                      
-                      {msg.type === 'chart' && msg.chartData && (
-                        <div className="bg-gradient-to-br from-slate-800 to-slate-900 p-6 rounded-2xl border border-slate-700/50">
-                          <h3 className="text-white text-lg font-bold mb-4">📊 Status das Cotações</h3>
-                          <ResponsiveContainer width="100%" height={300}>
-                            <PieChart>
-                              <Pie
-                                data={msg.chartData.labels.map((label, i) => ({
-                                  name: label,
-                                  value: msg.chartData!.values[i]
-                                }))}
-                                cx="50%"
-                                cy="50%"
-                                labelLine={false}
-                                label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                                outerRadius={100}
-                                fill="#8884d8"
-                                dataKey="value"
-                              >
-                                {msg.chartData.values.map((entry, index) => (
-                                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                ))}
-                              </Pie>
-                              <Tooltip 
-                                contentStyle={{ 
-                                  backgroundColor: '#1e293b', 
-                                  border: '1px solid #475569',
-                                  borderRadius: '8px',
-                                  color: '#fff'
-                                }} 
-                              />
-                              <Legend 
-                                wrapperStyle={{ color: '#fff' }}
-                                iconType="circle"
-                              />
-                            </PieChart>
-                          </ResponsiveContainer>
+                    )}
+                    
+                    <div className={`max-w-[75%] ${msg.role === 'user' ? 'order-first' : ''}`}>
+                      <div className={`rounded-2xl px-6 py-4 ${
+                        msg.role === 'user'
+                          ? 'bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-500 text-white shadow-lg shadow-cyan-500/20'
+                          : 'bg-slate-800/70 backdrop-blur-xl text-slate-100 border border-slate-700/50'
+                      }`}>
+                        <p style={{ whiteSpace: 'pre-line' }} className="leading-relaxed font-medium">
+                          {textoLimpo}
+                        </p>
+                        
+                        {/* ✅ RENDERIZAR GRÁFICO NOVO */}
+                        {graficoData && <GraficoChat data={graficoData} />}
+                        
+                        {/* Manter compatibilidade com gráficos antigos */}
+                        {msg.type === 'chart' && msg.chartData && !graficoData && (
+                          <div className="bg-gradient-to-br from-slate-800 to-slate-900 p-6 rounded-2xl border border-slate-700/50 mt-4">
+                            <h3 className="text-white text-lg font-bold mb-4">📊 Status das Cotações</h3>
+                            <ResponsiveContainer width="100%" height={300}>
+                              <PieChart>
+                                <Pie
+                                  data={msg.chartData.labels.map((label, i) => ({
+                                    name: label,
+                                    value: msg.chartData!.values[i]
+                                  }))}
+                                  cx="50%"
+                                  cy="50%"
+                                  labelLine={false}
+                                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                                  outerRadius={100}
+                                  fill="#8884d8"
+                                  dataKey="value"
+                                >
+                                  {msg.chartData.values.map((entry, index) => (
+                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                  ))}
+                                </Pie>
+                                <Tooltip 
+                                  contentStyle={{ 
+                                    backgroundColor: '#1e293b', 
+                                    border: '1px solid #475569',
+                                    borderRadius: '8px',
+                                    color: '#fff'
+                                  }} 
+                                />
+                                <Legend 
+                                  wrapperStyle={{ color: '#fff' }}
+                                  iconType="circle"
+                                />
+                              </PieChart>
+                            </ResponsiveContainer>
+                          </div>
+                        )}
+                      </div>
+                      {msg.role === 'assistant' && (
+                        <div className="flex items-center gap-2 mt-2 ml-2">
+                          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                          <p className="text-xs text-slate-500">CLK IA • Online</p>
                         </div>
                       )}
                     </div>
-                    {msg.role === 'assistant' && (
-                      <div className="flex items-center gap-2 mt-2 ml-2">
-                        <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                        <p className="text-xs text-slate-500">CLK IA • Online</p>
+                    
+                    {msg.role === 'user' && (
+                      <div className="flex-shrink-0">
+                        <div className="w-12 h-12 bg-gradient-to-br from-slate-700 to-slate-800 rounded-xl flex items-center justify-center border border-slate-600 shadow-lg">
+                          <span className="text-xs font-bold text-slate-300">VOCÊ</span>
+                        </div>
                       </div>
                     )}
                   </div>
-                  
-                  {msg.role === 'user' && (
-                    <div className="flex-shrink-0">
-                      <div className="w-12 h-12 bg-gradient-to-br from-slate-700 to-slate-800 rounded-xl flex items-center justify-center border border-slate-600 shadow-lg">
-                        <span className="text-xs font-bold text-slate-300">VOCÊ</span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ))}
+                );
+              })}
 
               {loading && (
                 <div className="flex gap-4 justify-start animate-slideUp">
