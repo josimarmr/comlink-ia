@@ -1,7 +1,95 @@
 import { Send, Zap, TrendingUp, Users, FileText, BarChart3 } from 'lucide-react'
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts'
-import GraficoChat from './GraficoChat'
-import { extrairGrafico, removerGrafico } from '../utils/graficos.js'
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Legend, Tooltip } from 'recharts'
+
+// ✅ FUNÇÕES DE GRÁFICO INLINE
+function extrairGrafico(mensagem: string) {
+  if (!mensagem) return null;
+  
+  const regex = /---GRAFICO---\s*TIPO:\s*(\w+)\s*TITULO:\s*([^\n]+)\s*LABELS:\s*([^\n]+)\s*VALORES:\s*([^\n]+)\s*CORES:\s*([^\n]+)\s*---FIM---/s;
+  
+  const match = mensagem.match(regex);
+  
+  if (!match) return null;
+  
+  return {
+    tipo: match[1].trim(),
+    titulo: match[2].trim(),
+    labels: match[3].split(',').map((l: string) => l.trim()),
+    valores: match[4].split(',').map((v: string) => parseFloat(v.trim())),
+    cores: match[5].split(',').map((c: string) => c.trim())
+  };
+}
+
+function removerGrafico(mensagem: string) {
+  if (!mensagem) return '';
+  return mensagem.replace(/---GRAFICO---[\s\S]*?---FIM---/g, '').trim();
+}
+
+// ✅ COMPONENTE DE GRÁFICO INLINE
+function GraficoChat({ data }: { data: any }) {
+  if (!data) return null;
+  
+  const { tipo, titulo, labels, valores, cores } = data;
+  
+  const chartData = labels.map((label: string, index: number) => ({
+    name: label,
+    value: valores[index]
+  }));
+  
+  return (
+    <div className="my-4 p-6 bg-gray-800/50 rounded-xl border border-cyan-500/30 backdrop-blur-sm">
+      <h3 className="text-lg font-semibold mb-4 text-cyan-400">{titulo}</h3>
+      <ResponsiveContainer width="100%" height={300}>
+        {tipo === 'pie' ? (
+          <PieChart>
+            <Pie
+              data={chartData}
+              cx="50%"
+              cy="50%"
+              labelLine={false}
+              label={({ name, percent }: any) => `${name}: ${(percent * 100).toFixed(0)}%`}
+              outerRadius={100}
+              dataKey="value"
+            >
+              {chartData.map((entry: any, index: number) => (
+                <Cell key={index} fill={cores[index]} />
+              ))}
+            </Pie>
+            <Tooltip 
+              contentStyle={{ 
+                backgroundColor: '#1e293b', 
+                border: '1px solid #06b6d4',
+                borderRadius: '8px',
+                color: '#fff'
+              }}
+            />
+            <Legend />
+          </PieChart>
+        ) : (
+          <BarChart data={chartData}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+            <XAxis dataKey="name" stroke="#9ca3af" />
+            <YAxis stroke="#9ca3af" />
+            <Tooltip 
+              contentStyle={{ 
+                backgroundColor: '#1e293b', 
+                border: '1px solid #06b6d4',
+                borderRadius: '8px',
+                color: '#fff'
+              }}
+            />
+            <Legend />
+            <Bar dataKey="value" radius={[8, 8, 0, 0]}>
+              {chartData.map((entry: any, index: number) => (
+                <Cell key={index} fill={cores[index]} />
+              ))}
+            </Bar>
+          </BarChart>
+        )}
+      </ResponsiveContainer>
+    </div>
+  );
+}
 
 interface Message {
   role: 'user' | 'assistant'
@@ -113,7 +201,7 @@ export default function Dashboard({
           ) : (
             <div className="space-y-6 py-6">
               {messages.map((msg, idx) => {
-                // ✅ NOVA LÓGICA: Extrair gráfico da mensagem
+                // ✅ EXTRAIR GRÁFICO DA MENSAGEM
                 const graficoData = msg.role === 'assistant' ? extrairGrafico(msg.content) : null;
                 const textoLimpo = msg.role === 'assistant' ? removerGrafico(msg.content) : msg.content;
                 
