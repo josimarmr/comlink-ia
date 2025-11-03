@@ -1,5 +1,5 @@
 import { Send, Zap, TrendingUp, Users, FileText, BarChart3 } from 'lucide-react'
-import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Legend, Tooltip } from 'recharts'
+import { PieChart, Pie, Cell, BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Legend, Tooltip } from 'recharts'
 
 // ✅ FUNÇÕES DE GRÁFICO INLINE
 function extrairGrafico(mensagem: string) {
@@ -12,7 +12,7 @@ function extrairGrafico(mensagem: string) {
   if (!match) return null;
   
   return {
-    tipo: match[1].trim(),
+    tipo: match[1].trim().toLowerCase(),
     titulo: match[2].trim(),
     labels: match[3].split(',').map((l: string) => l.trim()),
     valores: match[4].split(',').map((v: string) => parseFloat(v.trim())),
@@ -25,7 +25,7 @@ function removerGrafico(mensagem: string) {
   return mensagem.replace(/---GRAFICO---[\s\S]*?---FIM---/g, '').trim();
 }
 
-// ✅ COMPONENTE DE GRÁFICO INLINE
+// ✅ COMPONENTE DE GRÁFICO INLINE - SUPORTA PIE, BAR E LINE
 function GraficoChat({ data }: { data: any }) {
   if (!data) return null;
   
@@ -52,7 +52,7 @@ function GraficoChat({ data }: { data: any }) {
               dataKey="value"
             >
               {chartData.map((entry: any, index: number) => (
-                <Cell key={index} fill={cores[index]} />
+                <Cell key={index} fill={cores[index] || '#06b6d4'} />
               ))}
             </Pie>
             <Tooltip 
@@ -65,6 +65,29 @@ function GraficoChat({ data }: { data: any }) {
             />
             <Legend />
           </PieChart>
+        ) : tipo === 'line' ? (
+          <LineChart data={chartData}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+            <XAxis dataKey="name" stroke="#9ca3af" />
+            <YAxis stroke="#9ca3af" />
+            <Tooltip 
+              contentStyle={{ 
+                backgroundColor: '#1e293b', 
+                border: '1px solid #06b6d4',
+                borderRadius: '8px',
+                color: '#fff'
+              }}
+            />
+            <Legend />
+            <Line 
+              type="monotone" 
+              dataKey="value" 
+              stroke={cores[0] || '#06b6d4'} 
+              strokeWidth={3}
+              dot={{ fill: cores[0] || '#06b6d4', r: 5 }}
+              activeDot={{ r: 8 }}
+            />
+          </LineChart>
         ) : (
           <BarChart data={chartData}>
             <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
@@ -81,7 +104,7 @@ function GraficoChat({ data }: { data: any }) {
             <Legend />
             <Bar dataKey="value" radius={[8, 8, 0, 0]}>
               {chartData.map((entry: any, index: number) => (
-                <Cell key={index} fill={cores[index]} />
+                <Cell key={index} fill={cores[index] || '#06b6d4'} />
               ))}
             </Bar>
           </BarChart>
